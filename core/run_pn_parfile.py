@@ -82,6 +82,10 @@ def main(parfile):
     else:
         model = sbm.PhaseNet(phases="PSN", norm="peak")
 
+    # Move model to GPU if GPU is available
+    if torch.cuda.is_available() is True:
+        model.cuda()
+
     # Start training
     # specify loss function
     loss_fn = VectorCrossEntropyLoss()
