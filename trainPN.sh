@@ -12,4 +12,18 @@
 ml conda/2022
 conda activate seisbench
 
-python core/run_pn_parfile.py "$1"
+count=1
+
+for var in "$@"
+do
+    echo "Start training for $var"
+    python core/run_pn_parfile.py $var &
+    pids[${count}]=$!
+    sleep 1
+    (( count++ ))
+done
+
+# wait for all pids
+for pid in ${pids[*]}; do
+    wait $pid
+done
