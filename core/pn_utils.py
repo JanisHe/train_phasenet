@@ -1,276 +1,23 @@
 """
-Collection of functions to create seisbench datasets
+Collection of functions to train and test PhaseNet
 """
-import os.path
-
-import pandas as pd
-import random
-import obspy
-from obspy.clients.fdsn import Client
-from obspy.clients.fdsn.header import FDSNException
-from utils import snr_pick
-import lxml
+import os
+import torch
+import pathlib
 import seisbench
+
 import numpy as np
+import pandas as pd
+
+from typing import Union
+import matplotlib.pyplot as plt
+from torch.utils.data import DataLoader
 import seisbench.data as sbd
 import seisbench.generate as sbg
 import seisbench.models as sbm
 from seisbench.util import worker_seeding
-from torch.utils.data import DataLoader
-import torch
-import torch.nn as nn
-import matplotlib.pyplot as plt
-from utils import is_nan
-from typing import Union
-import pathlib
 
-
-class Metrics:
-    """
-
-    """
-    def __init__(self, probabilities, residuals,
-                 true_pick_prob=0.5, arrival_residuals=10):
-        self.probabilities = probabilities
-        self.residuals = residuals
-        self.true_pick_prob = true_pick_prob
-        self.arrival_residuals = arrival_residuals
-
-        self.predictions = None
-        self.true_positive = None
-        self.false_positive = None
-        self.false_negative = None
-
-    def true_false_positives(self, predictions) -> (float, float, float):
-        self.true_positive = 0
-        self.false_positive = 0
-        self.false_negative = 0
-        for index, prediction in enumerate(predictions):
-            if not is_nan(prediction):
-                if (self.probabilities[index] >= self.true_pick_prob and
-                        abs(self.residuals[index]) <= self.arrival_residuals):
-                    self.true_positive += 1
-                elif (self.probabilities[index] >= self.true_pick_prob and
-                      abs(self.residuals[index]) > self.arrival_residuals):
-                    self.false_positive += 1
-                elif (self.probabilities[index] < self.true_pick_prob and
-                      abs(self.residuals[index]) > self.arrival_residuals):
-                    self.false_negative += 1
-
-    def precision(self, predictions=None) -> float:
-        self.check_predictions(predictions=predictions)
-        return self.true_positive / (self.true_positive + self.false_positive)
-
-    def recall(self, predictions=None) -> float:
-        self.check_predictions(predictions=predictions)
-        return self.true_positive / (self.true_positive + self.false_negative)
-
-    def f1_score(self, predictions=None) -> float:
-
-        return 2 * ((self.precision(predictions=predictions) * self.recall(predictions=predictions)) / (
-                    self.precision(predictions=predictions) + self.recall(predictions=predictions)))
-
-    def check_predictions(self, predictions):
-        if not self.true_positive:
-            self.predictions = predictions
-            self.true_false_positives(predictions=predictions)
-
-
-def get_event_params(event):
-    """
-    Get parameter from event for SeisBench datasets.
-    If parameter can not be found it is set to None
-
-    :param event:
-    :return:
-    """
-    origin = event.origins[0]
-    try:
-        magnitudes = event.magnitudes[0]
-    except IndexError:
-        magnitudes = None
-    source_id = str(event.resource_id)
-
-    event_params = {
-        "source_id": source_id,
-        "source_origin_time": str(origin.time),
-        "source_origin_uncertainty_sec": origin.time_errors.get("uncertainty"),
-        "source_latitude_deg": origin.latitude,
-        "source_latitude_uncertainty_km": origin.latitude_errors.get("uncertainty"),
-        "source_longitude_deg": origin.longitude,
-        "source_longitude_uncertainty_km": origin.longitude_errors.get("uncertainty"),
-        "source_depth_km": origin.depth / 1e3,
-        "source_depth_uncertainty_km": origin.depth_errors.get("uncertainty"),
-    }
-
-    if event_params["source_depth_uncertainty_km"]:
-        event_params["source_depth_uncertainty_km"] = event_params["source_depth_uncertainty_km"] / 1e3
-
-    if magnitudes is not None:
-        event_params["source_magnitude"] = magnitudes.mag
-        event_params["source_magnitude_uncertainty"] = magnitudes.mag_errors.get("uncertainty")
-        event_params["source_magnitude_type"] = magnitudes.magnitude_type
-        event_params["source_magnitude_author"] = magnitudes.resource_id
-
-    return event_params
-
-
-def get_trace_params(network_code: str,
-                     station_code: str,
-                     starttime: obspy.UTCDateTime,
-                     endtime: obspy.UTCDateTime,
-                     fdsn_client=None,
-                     inventory=None):
-    """
-
-    :param network_code:
-    :param station_code:
-    :param starttime:
-    :param endtime:
-    :param fdsn_client:
-    :param inventory:
-    :return:
-    """
-    if fdsn_client and inventory is None:
-        try:
-            inventory = fdsn_client.get_stations(
-                network=network_code,
-                station=station_code,
-                starttime=starttime,
-                endtime=endtime,
-                level="response"
-            )
-        except (FDSNException, lxml.etree.XMLSyntaxError):
-            pass
-
-    trace_params = dict(
-        station_network_code=network_code,
-        station_code=station_code,
-        trace_channel=None,
-        station_location_code=None
-    )
-
-    if inventory:
-        trace_params.update(
-            {"station_longitude_deg": inventory[0].stations[0].longitude,
-             "station_latitude_deg": inventory[0].stations[0].latitude}
-        )
-
-    return trace_params
-
-
-def get_waveforms(picks,
-                  trace_params: dict,
-                  clients: list,
-                  time_before=60.0,
-                  time_after=60.0,
-                  channel="*",
-                  min_samples=3001):
-    """
-
-    :param picks:
-    :param trace_params:
-    :param clients:
-    :param time_before:
-    :param time_after:
-    :param channel:
-    :param min_samples:
-    :return:
-    """
-    starttime = list(picks.values())[0] - time_before  # Starttime from earliest pick
-    endtime = list(picks.values())[-1] + time_after     # Endtime from latest pick
-
-    # Get channels from trace_params (overrides channels from arguments)
-    if trace_params.get("trace_channel"):
-        channel = f"{trace_params.get('trace_channel')}*"
-
-    # Try to get waveforms from all clients in list
-    for client in clients:
-        try:
-            stream = client.get_waveforms(
-                network=trace_params["station_network_code"],
-                station=trace_params["station_code"],
-                location="*",
-                channel=channel,
-                starttime=starttime,
-                endtime=endtime
-            )
-
-            if len(stream) > 0:
-                break
-        except BaseException:
-            stream = obspy.Stream()
-
-    if len(stream) == 0:
-        msg = "No traces in waveforms."
-        raise ValueError(msg)
-    else:
-        # Update trace_params
-        trace_params['trace_channel'] = stream[0].stats.channel[:2]
-        # TODO: Location is correct in editor afterwards
-        trace_params["station_location_code"] = stream[0].stats.location
-
-        # Check that the traces have the same sampling rate
-        sampling_rate = stream[0].stats.sampling_rate
-        try:
-            assert all(trace.stats.sampling_rate == sampling_rate for trace in stream)
-        except AssertionError:
-            stream.resample(sampling_rate=sampling_rate)
-
-        # Check min length of all waveforms
-        min_num_samples = (time_before + time_after) * sampling_rate
-        if min_num_samples >= min_samples:
-            try:
-                assert all(trace.stats.npts >= min_num_samples for trace in stream)
-            except AssertionError:
-                msg = f"One trace in {stream} does not have the correct length."
-                raise ValueError(msg)
-        else:
-            msg = "Traces in {stream} do not fullfill the minimal length criterium"
-            raise ValueError(msg)
-
-        # Update sampling_rate in trace_params and network_code
-        trace_params.update({"trace_sampling_rate_hz": sampling_rate})
-        trace_params["station_network_code"] = stream[0].stats.network
-
-        return stream, trace_params
-
-
-def cross_validation(metdata_pathname,
-                     train=0.7,
-                     dev=0.2,
-                     test=0.1):
-    """
-
-    :param metdata_pathname:
-    :param train:
-    :param dev:
-    :param test:
-    :return:
-    """
-    # TODO: if split is already used as column, only change train and dev for cross-validation
-    if abs(1 - sum([train, dev, test])) >= 1e-3:
-        msg = "Sum of train, dev, test must be 1!"
-        raise ValueError(msg)
-
-    # Read metadata csv file
-    metadata = pd.read_csv(metdata_pathname)
-
-    # Define arbitrary list with values of train/dev/test with length of metadata number of rows
-    # TODO: Split test to same event(s) and not randomly
-    test_lst = ["test"] * int(metadata.shape[0] * test)
-    dev_lst = ["dev"] * int(metadata.shape[0] * dev)
-    train_lst = ["train"] * (metadata.shape[0] - sum([len(test_lst), len(dev_lst)]))
-    train_dev_test_lst = test_lst + dev_lst + train_lst
-
-    # Shuffle train_dev_test_lst
-    random.shuffle(train_dev_test_lst)
-
-    # Add column with split values to metadata
-    metadata["split"] = train_dev_test_lst
-
-    # Save new metadata
-    metadata.to_csv(path_or_buf=metdata_pathname)
+from torch_functions import Metrics
 
 
 def get_phase_dict():
@@ -350,27 +97,7 @@ def map_arrivals(dataframe: pd.DataFrame,
     """
     # Default dictionary for mapping phases
     if not map_phases:
-        map_phases = {
-            "trace_p_arrival_sample": "P",
-            "trace_pP_arrival_sample": "P",
-            "trace_P_arrival_sample": "P",
-            "trace_P1_arrival_sample": "P",
-            "trace_Pg_arrival_sample": "P",
-            "trace_Pn_arrival_sample": "P",
-            "trace_PmP_arrival_sample": "P",
-            "trace_pwP_arrival_sample": "P",
-            "trace_pwPm_arrival_sample": "P",
-            "trace_TPg_arrival_sample": "P",
-            "trace_TSg_arrival_sample": "P",
-            "trace_APg_arrival_sample": "P",
-            "trace_s_arrival_sample": "S",
-            "trace_S_arrival_sample": "S",
-            "trace_S1_arrival_sample": "S",
-            "trace_Sg_arrival_sample": "S",
-            "trace_SmS_arrival_sample": "S",
-            "trace_Sn_arrival_sample": "S",
-            "trace_ASg_arrival_sample": "S",
-        }
+        map_phases = get_phase_dict()
 
     # Get unique values form map_phases
     inv_phases = inverse_dict(map_phases)

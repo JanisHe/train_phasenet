@@ -9,11 +9,11 @@ datasets:
     #eifel: /scratch/gpi/seis/jheuel/ai_datasets/eifel
     #insheim: /scratch/gpi/seis/jheuel/ai_datasets/insheim
 batch_size: 256
-epochs: 2
+epochs: 100
 learning_rate: 0.001
 preload_model: stead  # diting, ethz, geofon, instance, iquique, lendb, neic, obs, original, scedc, stead
 nworkers: 6
-patience: 2        # early stopping
+patience: 10        # early stopping
 model_name: phasenet.pth
 # Parameters for test
 win_len_factor: 10

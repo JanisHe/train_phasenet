@@ -3,21 +3,18 @@ import os
 import shutil
 import pathlib
 import yaml
+import torch
+
+from pathlib import Path
+import numpy as np
+import matplotlib.pyplot as plt
 import seisbench.data as sbd
 import seisbench.generate as sbg
 import seisbench.models as sbm
 from seisbench.util import worker_seeding
-
-import numpy as np
-import matplotlib.pyplot as plt
-import torch
-import torch.nn as nn
 from torch.utils.data import DataLoader
-from obspy.clients.fdsn import Client
-from obspy import UTCDateTime
-from pathlib import Path
 
-from sb_functions import get_phase_dict, test_model
+from pn_utils import get_phase_dict, test_model
 from torch_functions import train_model, VectorCrossEntropyLoss
 
 

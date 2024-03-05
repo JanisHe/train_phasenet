@@ -1,6 +1,8 @@
 import numpy as np
-import torch
 from tqdm.auto import tqdm
+import torch
+
+from utils import is_nan
 
 
 class EarlyStopping:
@@ -59,6 +61,59 @@ class EarlyStopping:
         if self.path:
             torch.save(model.state_dict(), self.path)
         self.val_loss_min = val_loss
+
+
+class Metrics:
+    """
+
+    """
+    def __init__(self, probabilities, residuals,
+                 true_pick_prob=0.5, arrival_residuals=10):
+        self.probabilities = probabilities
+        self.residuals = residuals
+        self.true_pick_prob = true_pick_prob
+        self.arrival_residuals = arrival_residuals
+
+        self.predictions = None
+        self.true_positive = None
+        self.false_positive = None
+        self.false_negative = None
+
+    def true_false_positives(self, predictions) -> (float, float, float):
+        self.true_positive = 0
+        self.false_positive = 0
+        self.false_negative = 0
+        for index, prediction in enumerate(predictions):
+            if not is_nan(prediction):
+                if (self.probabilities[index] >= self.true_pick_prob and
+                        abs(self.residuals[index]) <= self.arrival_residuals):
+                    self.true_positive += 1
+                elif (self.probabilities[index] >= self.true_pick_prob and
+                      abs(self.residuals[index]) > self.arrival_residuals):
+                    self.false_positive += 1
+                elif (self.probabilities[index] < self.true_pick_prob and
+                      abs(self.residuals[index]) > self.arrival_residuals):
+                    self.false_negative += 1
+
+    def precision(self, predictions=None) -> float:
+        self.check_predictions(predictions=predictions)
+        return self.true_positive / (self.true_positive + self.false_positive)
+
+    def recall(self, predictions=None) -> float:
+        self.check_predictions(predictions=predictions)
+        return self.true_positive / (self.true_positive + self.false_negative)
+
+    def f1_score(self, predictions=None) -> float:
+
+        return 2 * ((self.precision(predictions=predictions) * self.recall(predictions=predictions)) / (
+                    self.precision(predictions=predictions) + self.recall(predictions=predictions)))
+
+    def check_predictions(self, predictions):
+        if not self.true_positive:
+            self.predictions = predictions
+            self.true_false_positives(predictions=predictions)
+
+
 
 
 class VectorCrossEntropyLoss:
