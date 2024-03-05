@@ -31,7 +31,10 @@ def main(parfile):
     # Make copy of parfile and rename it by filename given in parameters
     if not os.path.exists("./parfiles"):
         os.makedirs("./parfiles")
-    shutil.copyfile(src=parfile, dst=f"./parfiles/{filename}.yml")
+    try:
+        shutil.copyfile(src=parfile, dst=f"./parfiles/{filename}.yml")
+    except shutil.SameFileError:
+        pass
 
     # Read datasets
     for lst in parameters['datasets']:
