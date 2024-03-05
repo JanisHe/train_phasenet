@@ -1,0 +1,21 @@
+nsamples: 3001
+sampling_rate: 100
+labeler: gaussian    # gaussian | triangle | box
+sigma: 10            # Half-width of labeler
+datasets:
+  - forge: /scratch/gpi/seis/jheuel/ai_datasets/forge
+    # floodrisk: /scratch/gpi/seis/jheuel/ai_datasets/floodrisk
+    #dawson_creek: /scratch/gpi/seis/jheuel/ai_datasets/dawson_creek
+    #eifel: /scratch/gpi/seis/jheuel/ai_datasets/eifel
+    #insheim: /scratch/gpi/seis/jheuel/ai_datasets/insheim
+batch_size: 256
+epochs: 2
+learning_rate: 0.001
+preload_model: stead  # diting, ethz, geofon, instance, iquique, lendb, neic, obs, original, scedc, stead
+nworkers: 6
+patience: 2        # early stopping
+model_name: phasenet.pth
+# Parameters for test
+win_len_factor: 10
+true_pick_prob: 0.5
+arrival_residual: 10  # in samples
