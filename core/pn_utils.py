@@ -150,6 +150,9 @@ def get_predicted_pick(prediction: torch.Tensor, index: int, true_pick: (int, No
     # Get phase index
     phase_index = get_sb_phase_value(phase=phase)
 
+    # If GPU is used, convert prediction from cuda to numpy
+    prediction = prediction.cpu()
+
     # Find maximum of predicted pick
     pred_pick = np.where(prediction[index, phase_index, :] ==
                          np.max(np.array(prediction[index, phase_index,
