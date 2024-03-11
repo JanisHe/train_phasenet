@@ -122,17 +122,16 @@ def map_arrivals(dataframe: pd.DataFrame,
     return dataframe
 
 
-def get_sb_phase_value(phase: str):
-    if phase == "P":
-        return 0
-    elif phase == "S":
-        return 1
-    else:
-        raise ValueError(f"Phase {phase} is not allowed.")
+def get_sb_phase_value(phase: str, phasennet_model: seisbench.models.phasenet.PhaseNet):
+    try:
+        return phasennet_model.labels.index(phase)
+    except ValueError:
+        ValueError(f"Phase {phase} is not in model labels ({phasennet_model.labels}).")
 
 
-def get_true_pick(batch: dict, index: int, phase: str = "P") -> Union[str, None]:
-    phase_index = get_sb_phase_value(phase=phase)
+def get_true_pick(batch: dict, index: int, phasenet_model: seisbench.models.phasenet.PhaseNet,
+                  phase: str = "P") -> Union[str, None]:
+    phase_index = get_sb_phase_value(phase=phase, phasennet_model=phasenet_model)
     true_pick = np.where(batch["y"][index, phase_index, :] == np.max(np.array(batch["y"][index, phase_index, :])))[0]
 
     if len(true_pick) == 1:
@@ -142,13 +141,14 @@ def get_true_pick(batch: dict, index: int, phase: str = "P") -> Union[str, None]
 
 
 def get_predicted_pick(prediction: torch.Tensor, index: int, true_pick: (int, None),
+                       phasenet_model: seisbench.models.phasenet.PhaseNet,
                        sigma=30, phase: str = "P", win_len_factor=10) -> Union[int, None]:
     # Return None if true_pick is None
     if not true_pick:
         return None
 
     # Get phase index
-    phase_index = get_sb_phase_value(phase=phase)
+    phase_index = get_sb_phase_value(phase=phase, phasennet_model=phasenet_model)
 
     # If GPU is used, convert prediction from cuda to numpy
     prediction = prediction.cpu()
@@ -167,9 +167,9 @@ def get_predicted_pick(prediction: torch.Tensor, index: int, true_pick: (int, No
 
 
 def get_pick_probabilities(prediction_sample: (int, None), batch: dict, index: int,
-                           phase: str = "P") -> Union[float, None]:
+                           phasenet_model: seisbench.models.phasenet.PhaseNet, phase: str = "P") -> Union[float, None]:
 
-    phase_index = get_sb_phase_value(phase=phase)
+    phase_index = get_sb_phase_value(phase=phase, phasennet_model=phasenet_model)
     if prediction_sample:
         return batch["y"][index, phase_index, prediction_sample].item()
     else:
@@ -198,20 +198,22 @@ def get_picks(model, dataloader, sigma=30, win_len_factor=10):
             pred = model(batch["X"].to(model.device))
             for index in range(pred.shape[0]):
                 # Find true P and S phase arrival
-                true_p_samp = get_true_pick(batch=batch, index=index, phase="P")
-                true_s_samp = get_true_pick(batch=batch, index=index, phase="S")
+                true_p_samp = get_true_pick(batch=batch, index=index, phase="P", phasenet_model=model)
+                true_s_samp = get_true_pick(batch=batch, index=index, phase="S", phasenet_model=model)
 
                 # Find predicted P and S arrival
                 pred_p_samp = get_predicted_pick(prediction=pred, index=index, true_pick=true_p_samp,
-                                                 sigma=sigma, phase="P", win_len_factor=win_len_factor)
+                                                 sigma=sigma, phase="P", win_len_factor=win_len_factor,
+                                                 phasenet_model=model)
                 pred_s_samp = get_predicted_pick(prediction=pred, index=index, true_pick=true_s_samp,
-                                                 sigma=sigma, phase="S", win_len_factor=win_len_factor)
+                                                 sigma=sigma, phase="S", win_len_factor=win_len_factor,
+                                                 phasenet_model=model)
 
                 # Get pick probabilities for P and S
                 p_prob = get_pick_probabilities(batch=batch, prediction_sample=pred_p_samp,
-                                                index=index, phase="P")
+                                                index=index, phase="P", phasenet_model=model)
                 s_prob = get_pick_probabilities(batch=batch, prediction_sample=pred_s_samp,
-                                                index=index, phase="S")
+                                                index=index, phase="S", phasenet_model=model)
 
                 # Write results to dictionary
                 pick_results["true_P"][index + (batch_index * dataloader.batch_size)] = true_p_samp
@@ -247,7 +249,7 @@ def add_metrics(axes, metrics: Metrics):
 def test_model(model: seisbench.models.phasenet.PhaseNet,
                test_dataset: seisbench.data.base.MultiWaveformDataset,
                parameters: dict,
-               plot_residual_histogram: bool=False):
+               plot_residual_histogram: bool = False):
     """
 
     """

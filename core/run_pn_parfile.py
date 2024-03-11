@@ -49,6 +49,16 @@ def main(parfile):
     # Split dataset in train, dev (validation) and test
     train, validation, test = seisbench_dataset.train_dev_test()
 
+    # Load model
+    if parameters.get("preload_model"):
+        model = sbm.PhaseNet.from_pretrained(parameters["preload_model"])
+    else:
+        model = sbm.PhaseNet(phases="NPS", norm="peak")
+
+    # Move model to GPU if GPU is available
+    if torch.cuda.is_available() is True:
+        model.cuda()
+
     # Define generators for training and validation
     train_generator = sbg.GenericGenerator(train)
     val_generator = sbg.GenericGenerator(validation)
@@ -61,7 +71,8 @@ def main(parfile):
         sbg.RandomWindow(windowlen=parameters["nsamples"], strategy="pad"),
         sbg.Normalize(demean_axis=-1, amp_norm_axis=-1, amp_norm_type="peak"),  # Paper zhu: std and not peak
         sbg.ChangeDtype(np.float32),
-        sbg.ProbabilisticLabeller(label_columns=get_phase_dict(), sigma=parameters["sigma"], dim=0)
+        sbg.ProbabilisticLabeller(label_columns=get_phase_dict(), sigma=parameters["sigma"],
+                                  dim=0, model_labels=model.labels, noise_column=True)
     ]
 
     # Add augmentations to generators
@@ -75,16 +86,6 @@ def main(parfile):
     val_loader = DataLoader(dataset=val_generator, batch_size=parameters["batch_size"],
                             shuffle=False, num_workers=parameters["nworkers"],
                             worker_init_fn=worker_seeding)
-
-    # Load model
-    if parameters["preload_model"]:
-        model = sbm.PhaseNet.from_pretrained(parameters["preload_model"])
-    else:
-        model = sbm.PhaseNet(phases="PSN", norm="peak")
-
-    # Move model to GPU if GPU is available
-    if torch.cuda.is_available() is True:
-        model.cuda()
 
     # Start training
     # specify loss function
