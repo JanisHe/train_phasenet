@@ -122,7 +122,7 @@ def map_arrivals(dataframe: pd.DataFrame,
     return dataframe
 
 
-def get_sb_phase_value(phase: str, phasennet_model: seisbench.models.phasenet.PhaseNet):
+def get_sb_phase_value(phase: str, phasennet_model: seisbench.models.phasenet.PhaseNet) -> int:
     try:
         return phasennet_model.labels.index(phase)
     except ValueError:
@@ -261,7 +261,8 @@ def test_model(model: seisbench.models.phasenet.PhaseNet,
                                selection="first", strategy="variable"),
         sbg.Normalize(demean_axis=-1, amp_norm_axis=-1, amp_norm_type="peak"),
         sbg.ChangeDtype(np.float32),
-        sbg.ProbabilisticLabeller(label_columns=get_phase_dict(), sigma=parameters["sigma"], dim=0)
+        sbg.ProbabilisticLabeller(label_columns=get_phase_dict(), sigma=parameters["sigma"], dim=0,
+                                  model_labels=model.labels)
     ]
     test_generator.add_augmentations(augmentations_test)
     test_loader = DataLoader(dataset=test_generator, batch_size=parameters["batch_size"],
