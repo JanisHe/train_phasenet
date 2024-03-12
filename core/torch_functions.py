@@ -114,8 +114,6 @@ class Metrics:
             self.true_false_positives(predictions=predictions)
 
 
-
-
 class VectorCrossEntropyLoss:
     """
     Vector cross entropy as definded in Zhu & Beroza (2018).
@@ -138,6 +136,21 @@ class VectorCrossEntropyLoss:
         h = h.mean()                           # Mean over batch axis
 
         return -h
+
+
+class MeanSquaredError:
+    def __init__(self):
+        pass
+
+    def __call__(self, y_pred, y_true):
+        """
+
+        """
+        mse = (y_true - y_pred) ** 2
+        mse = mse.mean(-1).sum(-1)
+        mse = mse.mean()
+
+        return mse
 
 
 def train_model(model, train_loader, validation_loader, loss_fn,
@@ -166,7 +179,7 @@ def train_model(model, train_loader, validation_loader, loss_fn,
         with tqdm(total=num_batches, desc=f"Epoch {epoch + 1}", ncols=100,
                   bar_format="{l_bar}{bar} [Elapsed time: {elapsed} {postfix}]") as pbar:
             for batch_id, batch in enumerate(train_loader):
-                # Compute prediction adn loss
+                # Compute prediction and loss
                 pred = model(batch["X"].to(model.device))
                 loss = loss_fn(pred, batch["y"].to(model.device))
 
