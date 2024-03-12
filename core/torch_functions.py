@@ -181,7 +181,7 @@ def train_model(model, train_loader, validation_loader, loss_fn,
             for batch_id, batch in enumerate(train_loader):
                 # Compute prediction and loss
                 pred = model(batch["X"].to(model.device))
-                loss = loss_fn(pred, batch["y"].to(model.device))
+                loss = loss_fn(y_pred=pred, y_true=batch["y"].to(model.device))
 
                 # Do backpropagation
                 optimizer.zero_grad()   # clear the gradients of all optimized variables
