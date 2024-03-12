@@ -53,7 +53,8 @@ def main(parfile):
     if parameters.get("preload_model"):
         model = sbm.PhaseNet.from_pretrained(parameters["preload_model"])
     else:
-        model = sbm.PhaseNet(phases="NPS", norm="peak")
+        model = sbm.PhaseNet(phases="PSN", norm="peak")
+    # model = torch.compile(model)  # XXX Attribute error when saving model
 
     # Move model to GPU if GPU is available
     if torch.cuda.is_available() is True:

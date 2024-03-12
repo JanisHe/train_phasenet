@@ -120,7 +120,7 @@ class VectorCrossEntropyLoss:
     """
     Vector cross entropy as definded in Zhu & Beroza (2018).
 
-    H(p, q) = \sim_{i=-1}^{3} \sum_x p_i(x) * log(q_i(x))
+    H(p, q) = \sum_{i=-1}^{3} \sum_x p_i(x) * log(q_i(x))
     p: true probabiliyt distribution
     q: predicted distribution
     """

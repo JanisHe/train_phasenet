@@ -262,7 +262,7 @@ def test_model(model: seisbench.models.phasenet.PhaseNet,
         sbg.Normalize(demean_axis=-1, amp_norm_axis=-1, amp_norm_type="peak"),
         sbg.ChangeDtype(np.float32),
         sbg.ProbabilisticLabeller(label_columns=get_phase_dict(), sigma=parameters["sigma"], dim=0,
-                                  model_labels=model.labels)
+                                  model_labels=model.labels, noise_column=True)
     ]
     test_generator.add_augmentations(augmentations_test)
     test_loader = DataLoader(dataset=test_generator, batch_size=parameters["batch_size"],
