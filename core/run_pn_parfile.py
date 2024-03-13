@@ -51,9 +51,15 @@ def main(parfile):
 
     # Load model
     if parameters.get("preload_model"):
-        model = sbm.PhaseNet.from_pretrained(parameters["preload_model"])
+        try:
+            model = sbm.PhaseNet.from_pretrained(parameters["preload_model"])
+        except ValueError:
+            model = torch.load(parameters["preload_model"], map_location=torch.device('cpu'))
     else:
-        model = sbm.PhaseNet(phases="PSN", norm="peak")
+        phases = parameters.get("phases")
+        if not phases:
+            phases = "PSN"
+        model = sbm.PhaseNet(phases=phases, norm="peak")
     # model = torch.compile(model)  # XXX Attribute error when saving model
 
     # Move model to GPU if GPU is available
