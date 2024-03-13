@@ -17,7 +17,7 @@ import seisbench.generate as sbg
 import seisbench.models as sbm
 from seisbench.util import worker_seeding
 
-from torch_functions import Metrics
+from core.torch_functions import Metrics
 
 
 def get_phase_dict():

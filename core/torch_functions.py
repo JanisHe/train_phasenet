@@ -2,7 +2,7 @@ import numpy as np
 from tqdm.auto import tqdm
 import torch
 
-from utils import is_nan
+from core.utils import is_nan
 
 
 class EarlyStopping:
