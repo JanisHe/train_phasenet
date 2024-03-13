@@ -132,12 +132,12 @@ def get_sb_phase_value(phase: str, phasennet_model: seisbench.models.phasenet.Ph
 def get_true_pick(batch: dict, index: int, phasenet_model: seisbench.models.phasenet.PhaseNet,
                   phase: str = "P") -> Union[str, None]:
     phase_index = get_sb_phase_value(phase=phase, phasennet_model=phasenet_model)
-    true_pick = np.where(batch["y"][index, phase_index, :] == np.max(np.array(batch["y"][index, phase_index, :])))[0]
+    true_pick_index = np.argmax(batch["y"][index, phase_index, :].detach().numpy())
 
-    if len(true_pick) == 1:
-        return true_pick[0]
-    else:
+    if true_pick_index == 0:
         return None
+    else:
+        return true_pick_index
 
 
 def get_predicted_pick(prediction: torch.Tensor, index: int, true_pick: (int, None),
@@ -154,16 +154,16 @@ def get_predicted_pick(prediction: torch.Tensor, index: int, true_pick: (int, No
     prediction = prediction.cpu()
 
     # Find maximum of predicted pick
-    pred_pick = np.where(prediction[index, phase_index, :] ==
-                         np.max(np.array(prediction[index, phase_index,
-                                         true_pick - int(win_len_factor * sigma):   # TODO: Grenzwert von +- x * sigma
-                                         true_pick + int(win_len_factor * sigma)]
-                                         )))[0]
+    pred_pick_index = np.argmax(prediction[index, phase_index, true_pick - int(win_len_factor * sigma):   # TODO: Grenzwert von +- x * sigma
+                                           true_pick + int(win_len_factor * sigma)]
+                                .detach().numpy())
+    # Add offset to pred_pick_index
+    pred_pick_index += true_pick - int(win_len_factor * sigma)
 
-    if len(pred_pick) == 1:
-        return pred_pick[0]
-    else:
+    if pred_pick_index == 0:
         return None
+    else:
+        return pred_pick_index
 
 
 def get_pick_probabilities(prediction_sample: (int, None), batch: dict, index: int,
