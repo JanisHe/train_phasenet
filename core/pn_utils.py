@@ -166,12 +166,12 @@ def get_predicted_pick(prediction: torch.Tensor, index: int, true_pick: (int, No
         return pred_pick_index
 
 
-def get_pick_probabilities(prediction_sample: (int, None), batch: dict, index: int,
+def get_pick_probabilities(prediction_sample: (int, None), prediction: torch.Tensor, index: int,
                            phasenet_model: seisbench.models.phasenet.PhaseNet, phase: str = "P") -> Union[float, None]:
 
     phase_index = get_sb_phase_value(phase=phase, phasennet_model=phasenet_model)
     if prediction_sample:
-        return batch["y"][index, phase_index, prediction_sample].item()
+        return prediction[index, phase_index, prediction_sample].item()
     else:
         return None
 
@@ -210,9 +210,9 @@ def get_picks(model, dataloader, sigma=30, win_len_factor=10):
                                                  phasenet_model=model)
 
                 # Get pick probabilities for P and S
-                p_prob = get_pick_probabilities(batch=batch, prediction_sample=pred_p_samp,
+                p_prob = get_pick_probabilities(prediction=pred, prediction_sample=pred_p_samp,
                                                 index=index, phase="P", phasenet_model=model)
-                s_prob = get_pick_probabilities(batch=batch, prediction_sample=pred_s_samp,
+                s_prob = get_pick_probabilities(prediction=pred, prediction_sample=pred_s_samp,
                                                 index=index, phase="S", phasenet_model=model)
 
                 # Write results to dictionary
