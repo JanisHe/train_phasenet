@@ -275,9 +275,9 @@ def test_model(model: seisbench.models.phasenet.PhaseNet,
     # Evaluate metrics for P and S
     # 1. Determine true positives (tp), false positives (fp), and false negatives (fn) for P and S phases
     metrics_p = Metrics(probabilities=picks_and_probs["prob_P"], residuals=picks_and_probs["residual_P"],
-                        true_pick_prob=parameters["true_pick_prob"], arrival_residuals=parameters["arrival_residual"])
+                        true_pick_prob=parameters["true_pick_prob"], arrival_residual=parameters["arrival_residual"])
     metrics_s = Metrics(probabilities=picks_and_probs["prob_S"], residuals=picks_and_probs["residual_S"],
-                        true_pick_prob=parameters["true_pick_prob"], arrival_residuals=parameters["arrival_residual"])
+                        true_pick_prob=parameters["true_pick_prob"], arrival_residual=parameters["arrival_residual"])
 
     precision_p = metrics_p.precision(predictions=picks_and_probs["pred_P"])
     precision_s = metrics_s.precision(predictions=picks_and_probs["pred_S"])

@@ -68,31 +68,31 @@ class Metrics:
 
     """
     def __init__(self, probabilities, residuals,
-                 true_pick_prob=0.5, arrival_residuals=10):
+                 true_pick_prob=0.5, arrival_residual=10):
         self.probabilities = probabilities
         self.residuals = residuals
         self.true_pick_prob = true_pick_prob
-        self.arrival_residuals = arrival_residuals
+        self.arrival_residual = arrival_residual
 
         self.predictions = None
         self.true_positive = None
         self.false_positive = None
         self.false_negative = None
 
-    def true_false_positives(self, predictions) -> (float, float, float):
+    def true_false_positives(self, predictions):
         self.true_positive = 0
         self.false_positive = 0
         self.false_negative = 0
         for index, prediction in enumerate(predictions):
             if not is_nan(prediction):
                 if (self.probabilities[index] >= self.true_pick_prob and
-                        abs(self.residuals[index]) <= self.arrival_residuals):
+                        abs(self.residuals[index]) <= self.arrival_residual):
                     self.true_positive += 1
                 elif (self.probabilities[index] >= self.true_pick_prob and
-                      abs(self.residuals[index]) > self.arrival_residuals):
+                      abs(self.residuals[index]) > self.arrival_residual):
                     self.false_positive += 1
                 elif (self.probabilities[index] < self.true_pick_prob and
-                      abs(self.residuals[index]) > self.arrival_residuals):
+                      abs(self.residuals[index]) > self.arrival_residual):
                     self.false_negative += 1
 
     def precision(self, predictions=None) -> float:
