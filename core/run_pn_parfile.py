@@ -62,6 +62,12 @@ def main(parfile):
         model = sbm.PhaseNet(phases=phases, norm="peak")
     # model = torch.compile(model)  # XXX Attribute error when saving model
 
+    # Select normalization
+    if parameters.get("preload_model") == "original":
+        normalization = "std"
+    else:
+        normalization = "peak"
+
     # Move model to GPU if GPU is available
     if torch.cuda.is_available() is True:
         model.cuda()
@@ -76,7 +82,7 @@ def main(parfile):
                                windowlen=2 * parameters["nsamples"], selection="random",
                                strategy="variable"),
         sbg.RandomWindow(windowlen=parameters["nsamples"], strategy="pad"),
-        sbg.Normalize(demean_axis=-1, amp_norm_axis=-1, amp_norm_type="peak"),  # Paper zhu: std and not peak
+        sbg.Normalize(demean_axis=-1, amp_norm_axis=-1, amp_norm_type=normalization),
         sbg.ChangeDtype(np.float32),
         sbg.ProbabilisticLabeller(label_columns=get_phase_dict(), sigma=parameters["sigma"],
                                   dim=0, model_labels=model.labels, noise_column=True)
