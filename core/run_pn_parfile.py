@@ -62,12 +62,6 @@ def main(parfile):
         model = sbm.PhaseNet(phases=phases, norm="peak")
     # model = torch.compile(model)  # XXX Attribute error when saving model
 
-    # Select normalization
-    if parameters.get("preload_model") in ["original", "diting"]:
-        normalization = "std"
-    else:
-        normalization = "peak"
-
     # Move model to GPU if GPU is available
     if torch.cuda.is_available() is True:
         model.cuda()
@@ -82,7 +76,7 @@ def main(parfile):
                                windowlen=2 * parameters["nsamples"], selection="random",
                                strategy="variable"),
         sbg.RandomWindow(windowlen=parameters["nsamples"], strategy="pad"),
-        sbg.Normalize(demean_axis=-1, amp_norm_axis=-1, amp_norm_type=normalization),
+        sbg.Normalize(demean_axis=-1, amp_norm_axis=-1, amp_norm_type=model.norm),
         sbg.ChangeDtype(np.float32),
         sbg.ProbabilisticLabeller(label_columns=get_phase_dict(), sigma=parameters["sigma"],
                                   dim=0, model_labels=model.labels, noise_column=True)
@@ -143,8 +137,7 @@ def main(parfile):
     # Test model on test data from dataset
     precission_p, precission_s, recall_p, recall_s, f1_p, f1_s = test_model(model=model, test_dataset=test,
                                                                             parameters=parameters,
-                                                                            plot_residual_histogram=True,
-                                                                            augmentations=augmentations)
+                                                                            plot_residual_histogram=True)
 
     print("Precision P:", precission_p)
     print("Precision S:", precission_s)

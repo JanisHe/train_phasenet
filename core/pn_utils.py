@@ -154,9 +154,12 @@ def get_predicted_pick(prediction: torch.Tensor, index: int, true_pick: (int, No
     prediction = prediction.cpu()
 
     # Find maximum of predicted pick
-    pred_pick_index = np.argmax(prediction[index, phase_index, true_pick - int(win_len_factor * sigma):   # TODO: Grenzwert von +- x * sigma
-                                           true_pick + int(win_len_factor * sigma)]
-                                .detach().numpy())
+    try:
+        pred_pick_index = np.argmax(prediction[index, phase_index, true_pick - int(win_len_factor * sigma):   # TODO: Grenzwert von +- x * sigma
+                                               true_pick + int(win_len_factor * sigma)]
+                                    .detach().numpy())
+    except ValueError:
+        print()
     # Add offset to pred_pick_index
     pred_pick_index += true_pick - int(win_len_factor * sigma)
 
@@ -255,16 +258,16 @@ def test_model(model: seisbench.models.phasenet.PhaseNet,
     """
     test_generator = sbg.GenericGenerator(test_dataset)
 
-    augmentations_test = [
+    augmentations = [
         sbg.WindowAroundSample(list(get_phase_dict().keys()), samples_before=int(parameters["nsamples"] / 3),
                                windowlen=parameters["nsamples"],
                                selection="first", strategy="variable"),
-        sbg.Normalize(demean_axis=-1, amp_norm_axis=-1, amp_norm_type="peak"),
+        sbg.Normalize(demean_axis=-1, amp_norm_axis=-1, amp_norm_type=model.norm),
         sbg.ChangeDtype(np.float32),
         sbg.ProbabilisticLabeller(label_columns=get_phase_dict(), sigma=parameters["sigma"], dim=0,
                                   model_labels=model.labels, noise_column=True)
     ]
-    test_generator.add_augmentations(augmentations_test)
+    test_generator.add_augmentations(augmentations)
     test_loader = DataLoader(dataset=test_generator, batch_size=parameters["batch_size"],
                              shuffle=False, num_workers=parameters["nworkers"],
                              worker_init_fn=worker_seeding, drop_last=False)
