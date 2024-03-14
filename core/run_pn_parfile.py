@@ -63,7 +63,7 @@ def main(parfile):
     # model = torch.compile(model)  # XXX Attribute error when saving model
 
     # Select normalization
-    if parameters.get("preload_model") == "original":
+    if parameters.get("preload_model") in ["original", "diting"]:
         normalization = "std"
     else:
         normalization = "peak"
@@ -143,7 +143,8 @@ def main(parfile):
     # Test model on test data from dataset
     precission_p, precission_s, recall_p, recall_s, f1_p, f1_s = test_model(model=model, test_dataset=test,
                                                                             parameters=parameters,
-                                                                            plot_residual_histogram=True)
+                                                                            plot_residual_histogram=True,
+                                                                            augmentations=augmentations)
 
     print("Precision P:", precission_p)
     print("Precision S:", precission_s)
