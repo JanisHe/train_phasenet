@@ -159,7 +159,7 @@ def get_predicted_pick(prediction: torch.Tensor, index: int, true_pick: (int, No
                                                true_pick + int(win_len_factor * sigma)]
                                     .detach().numpy())
     except ValueError:
-        print()
+        print()   # TODO: Was soll das denn?
     # Add offset to pred_pick_index
     pred_pick_index += true_pick - int(win_len_factor * sigma)
 
@@ -241,6 +241,7 @@ def residual_histogram(residuals, axes, bins=60, xlim=(-100, 100)):
 
 
 def add_metrics(axes, metrics: Metrics):
+    # TODO: Add mean and standard deviation
     textstr = (f"Precision: {np.round(metrics.precision(), 2)}\n"
                f"Recall: {np.round(metrics.recall(), 2)}\n"
                f"F1 score: {np.round(metrics.f1_score(), 2)}")
@@ -251,8 +252,8 @@ def add_metrics(axes, metrics: Metrics):
 
 def test_model(model: seisbench.models.phasenet.PhaseNet,
                test_dataset: seisbench.data.base.MultiWaveformDataset,
-               parameters: dict,
-               plot_residual_histogram: bool = False):
+               plot_residual_histogram: bool = False,
+               **parameters):
     """
 
     """

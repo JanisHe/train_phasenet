@@ -136,8 +136,8 @@ def main(parfile):
 
     # Test model on test data from dataset
     precission_p, precission_s, recall_p, recall_s, f1_p, f1_s = test_model(model=model, test_dataset=test,
-                                                                            parameters=parameters,
-                                                                            plot_residual_histogram=True)
+                                                                            plot_residual_histogram=True,
+                                                                            **parameters)
 
     print("Precision P:", precission_p)
     print("Precision S:", precission_s)
