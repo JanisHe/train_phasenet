@@ -120,31 +120,33 @@ def main(parfile):
         torch.save(model, parameters['model_name'])
     print(f"Saved model as {parameters['model_name']}.")
 
-    # Plot training and validation loss
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.plot(np.arange(len(train_loss)), train_loss, label="train")
-    ax.plot(np.arange(len(val_loss)), val_loss, label="test")
-    ax.set_xlabel("Epoch")
-    ax.set_ylabel("Loss")
-    ax.legend()
+    # Test model if test data are available
+    if len(test) > 0:
+        # Plot training and validation loss
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.plot(np.arange(len(train_loss)), train_loss, label="train")
+        ax.plot(np.arange(len(val_loss)), val_loss, label="test")
+        ax.set_xlabel("Epoch")
+        ax.set_ylabel("Loss")
+        ax.legend()
 
-    # Save figure
-    if os.path.isdir(os.path.join(".", "loss_figures")) is False:
-        os.makedirs(os.path.join(".", "loss_figures"))
-    plt.savefig(os.path.join(".", "loss_figures", f"{filename}.png"))
+        # Save figure
+        if os.path.isdir(os.path.join(".", "loss_figures")) is False:
+            os.makedirs(os.path.join(".", "loss_figures"))
+        plt.savefig(os.path.join(".", "loss_figures", f"{filename}.png"))
 
-    # Test model on test data from dataset
-    precission_p, precission_s, recall_p, recall_s, f1_p, f1_s = test_model(model=model, test_dataset=test,
-                                                                            plot_residual_histogram=True,
-                                                                            **parameters)
+        # Test model on test data from dataset
+        precission_p, precission_s, recall_p, recall_s, f1_p, f1_s = test_model(model=model, test_dataset=test,
+                                                                                plot_residual_histogram=True,
+                                                                                **parameters)
 
-    print("Precision P:", precission_p)
-    print("Precision S:", precission_s)
-    print("Recall P:", recall_p)
-    print("Recall S:", recall_s)
-    print("F1 P:", f1_p)
-    print("F1 S:", f1_s)
+        print("Precision P:", precission_p)
+        print("Precision S:", precission_s)
+        print("Recall P:", recall_p)
+        print("Recall S:", recall_s)
+        print("F1 P:", f1_p)
+        print("F1 S:", f1_s)
 
 
 
