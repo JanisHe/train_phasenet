@@ -285,10 +285,10 @@ def test_model(model: seisbench.models.phasenet.PhaseNet,
 
     precision_p = metrics_p.precision(predictions=picks_and_probs["pred_P"])
     precision_s = metrics_s.precision(predictions=picks_and_probs["pred_S"])
-    recall_p = metrics_p.recall()
-    recall_s = metrics_s.recall()
-    f1_p = metrics_p.f1_score()
-    f1_s = metrics_s.f1_score()
+    recall_p = metrics_p.recall(predictions=picks_and_probs["pred_P"])
+    recall_s = metrics_s.recall(predictions=picks_and_probs["pred_S"])
+    f1_p = metrics_p.f1_score(predictions=picks_and_probs["pred_P"])
+    f1_s = metrics_s.f1_score(predictions=picks_and_probs["pred_S"])
 
     # 2. Plot time arrival residuals for P and S
     if plot_residual_histogram is True:

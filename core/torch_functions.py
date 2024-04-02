@@ -95,18 +95,17 @@ class Metrics:
                       abs(self.residuals[index]) > self.arrival_residual):
                     self.false_negative += 1
 
-    def precision(self, predictions=None) -> float:
+    def precision(self, predictions=None, eps=1e-6) -> float:
         self.check_predictions(predictions=predictions)
-        return self.true_positive / (self.true_positive + self.false_positive)
+        return self.true_positive / (self.true_positive + self.false_positive + eps)
 
-    def recall(self, predictions=None) -> float:
+    def recall(self, predictions=None, eps=1e-6) -> float:
         self.check_predictions(predictions=predictions)
-        return self.true_positive / (self.true_positive + self.false_negative)
+        return self.true_positive / (self.true_positive + self.false_negative + eps)
 
-    def f1_score(self, predictions=None) -> float:
-
+    def f1_score(self, predictions=None, eps=1e-6) -> float:
         return 2 * ((self.precision(predictions=predictions) * self.recall(predictions=predictions)) / (
-                    self.precision(predictions=predictions) + self.recall(predictions=predictions)))
+                    self.precision(predictions=predictions) + self.recall(predictions=predictions) + eps))
 
     def check_predictions(self, predictions):
         if not self.true_positive:
