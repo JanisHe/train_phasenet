@@ -137,19 +137,14 @@ def main(parfile):
         plt.savefig(os.path.join(".", "loss_figures", f"{filename}.png"))
 
         # Test model on test data from dataset
-        precission_p, precission_s, recall_p, recall_s, f1_p, f1_s = test_model(model=model, test_dataset=test,
-                                                                                plot_residual_histogram=True,
-                                                                                **parameters)
+        metrics_p, metrics_s = test_model(model=model, test_dataset=test, plot_residual_histogram=True, **parameters)
 
-        print("Precision P:", precission_p)
-        print("Precision S:", precission_s)
-        print("Recall P:", recall_p)
-        print("Recall S:", recall_s)
-        print("F1 P:", f1_p)
-        print("F1 S:", f1_s)
-
-
-
+        print("Precision P:", metrics_p.precision)
+        print("Precision S:", metrics_s.precision)
+        print("Recall P:", metrics_p.recall)
+        print("Recall S:", metrics_s.recall)
+        print("F1 P:", metrics_p.f1)
+        print("F1 S:", metrics_s.f1)
 
 
 if __name__ == "__main__":

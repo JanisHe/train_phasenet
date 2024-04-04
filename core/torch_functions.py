@@ -67,23 +67,29 @@ class Metrics:
     """
 
     """
-    def __init__(self, probabilities, residuals,
+    def __init__(self, probabilities, residuals, predictions=None,
                  true_pick_prob=0.5, arrival_residual=10):
         self.probabilities = probabilities
         self.residuals = residuals
         self.true_pick_prob = true_pick_prob
         self.arrival_residual = arrival_residual
+        self.predictions = predictions
 
-        self.predictions = None
         self.true_positive = None
         self.false_positive = None
         self.false_negative = None
 
-    def true_false_positives(self, predictions):
+        if self.predictions is not None:
+            self.true_false_positives()
+
+    def __str__(self):
+        pass
+
+    def true_false_positives(self):
         self.true_positive = 0
         self.false_positive = 0
         self.false_negative = 0
-        for index, prediction in enumerate(predictions):
+        for index, prediction in enumerate(self.predictions):
             if not is_nan(prediction):
                 if (self.probabilities[index] >= self.true_pick_prob and
                         abs(self.residuals[index]) <= self.arrival_residual):
@@ -95,22 +101,18 @@ class Metrics:
                       abs(self.residuals[index]) > self.arrival_residual):
                     self.false_negative += 1
 
-    def precision(self, predictions=None, eps=1e-6) -> float:
-        self.check_predictions(predictions=predictions)
+    @property
+    def precision(self, eps=1e-6) -> float:
         return self.true_positive / (self.true_positive + self.false_positive + eps)
 
-    def recall(self, predictions=None, eps=1e-6) -> float:
-        self.check_predictions(predictions=predictions)
+    @property
+    def recall(self, eps=1e-6) -> float:
         return self.true_positive / (self.true_positive + self.false_negative + eps)
 
-    def f1_score(self, predictions=None, eps=1e-6) -> float:
-        return 2 * ((self.precision(predictions=predictions) * self.recall(predictions=predictions)) / (
-                    self.precision(predictions=predictions) + self.recall(predictions=predictions) + eps))
-
-    def check_predictions(self, predictions):
-        if not self.true_positive:
-            self.predictions = predictions
-            self.true_false_positives(predictions=predictions)
+    @property
+    def f1_score(self, eps=1e-6) -> float:
+        return 2 * ((self.precision() * self.recall()) / (
+                    self.precision() + self.recall() + eps))
 
 
 class VectorCrossEntropyLoss:
