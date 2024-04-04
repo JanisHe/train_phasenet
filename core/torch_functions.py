@@ -91,7 +91,7 @@ class Metrics:
                 elif (self.probabilities[index] >= self.true_pick_prob and
                       abs(self.residuals[index]) > self.arrival_residual):
                     self.false_positive += 1
-                elif (self.probabilities[index] < self.true_pick_prob and
+                elif (self.probabilities[index] < self.true_pick_prob or
                       abs(self.residuals[index]) > self.arrival_residual):
                     self.false_negative += 1
 
