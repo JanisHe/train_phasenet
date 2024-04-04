@@ -89,16 +89,13 @@ class Metrics:
         self.true_positive = 0
         self.false_positive = 0
         self.false_negative = 0
-        for index, prediction in enumerate(self.predictions):
+        for prediction, probability, residual in zip(self.predictions, self.probabilities, self.residuals):
             if not is_nan(prediction):
-                if (self.probabilities[index] >= self.true_pick_prob and
-                        abs(self.residuals[index]) <= self.arrival_residual):
+                if probability >= self.true_pick_prob and abs(residual) <= self.arrival_residual:
                     self.true_positive += 1
-                elif (self.probabilities[index] >= self.true_pick_prob and
-                      abs(self.residuals[index]) > self.arrival_residual):
+                elif probability >= self.true_pick_prob and abs(residual) > self.arrival_residual:
                     self.false_positive += 1
-                elif (self.probabilities[index] < self.true_pick_prob or
-                      abs(self.residuals[index]) > self.arrival_residual):
+                elif probability < self.true_pick_prob or abs(residual) > self.arrival_residual:
                     self.false_negative += 1
 
     @property
