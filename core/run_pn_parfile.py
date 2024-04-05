@@ -76,6 +76,7 @@ def main(parfile):
                                windowlen=2 * parameters["nsamples"], selection="random",
                                strategy="variable"),
         sbg.RandomWindow(windowlen=parameters["nsamples"], strategy="pad"),
+        sbg.RotateHorizontalComponents(),
         sbg.Normalize(demean_axis=-1, amp_norm_axis=-1, amp_norm_type=model.norm),
         sbg.ChangeDtype(np.float32),
         sbg.ProbabilisticLabeller(label_columns=get_phase_dict(), sigma=parameters["sigma"],
