@@ -7,6 +7,7 @@ import torch
 
 from pathlib import Path
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import seisbench.data as sbd
 import seisbench.generate as sbg
@@ -48,6 +49,16 @@ def main(parfile):
 
     # Split dataset in train, dev (validation) and test
     train, validation, test = seisbench_dataset.train_dev_test()
+
+    # Add fake events to increase training data set (data augmentation)
+    if parameters.get("add_fake_events"):
+        if parameters["add_fake_events"] > 0:
+            metadata_dct = train.metadata.to_dict(orient="list")
+            for i in range(parameters["add_fake_events"]):
+                rand_data_index = np.random.randint(0, len(train.metadata))
+                for key in metadata_dct:
+                    metadata_dct[key].append(metadata_dct[key][rand_data_index])
+            train._metadata = pd.DataFrame(metadata_dct)
 
     # Load model
     if parameters.get("preload_model"):
