@@ -38,19 +38,22 @@ def main(parfile):
         pass
 
     # Modifying metdata of datasets by adding fake events
-    for lst in parameters['datasets']:
-        for dataset in lst.values():
-            # Copy metadata file
-            shutil.copyfile(src=os.path.join(dataset, "metadata.csv"), dst=os.path.join(dataset, "tmp_metadata.csv"))
-            metadata = pd.read_csv(os.path.join(dataset, "metadata.csv"))
-            metadata_dct = metadata.to_dict(orient="list")
-            for i in range(parameters["add_fake_events"]):
-                rand_data_index = np.random.randint(0, len(metadata))
-                for key in metadata_dct:
-                    metadata_dct[key].append(metadata_dct[key][rand_data_index])
-            # Convert back to dataframe
-            metadata = pd.DataFrame(metadata_dct)
-            metadata.to_csv(path_or_buf=os.path.join(dataset, "metadata.csv"))
+    if parameters.get("add_fake_events"):
+        for lst in parameters['datasets']:
+            for dataset in lst.values():
+                # Copy metadata file
+                shutil.copyfile(src=os.path.join(dataset, "metadata.csv"),
+                                dst=os.path.join(dataset, "tmp_metadata.csv"))
+                metadata = pd.read_csv(os.path.join(dataset, "metadata.csv"))
+                metadata_dct = metadata.to_dict(orient="list")
+                num_add_events = int(len(metadata) * parameters["add_fake_events"] / 100)
+                for i in range(num_add_events):
+                    rand_data_index = np.random.randint(0, len(metadata))
+                    for key in metadata_dct:
+                        metadata_dct[key].append(metadata_dct[key][rand_data_index])
+                # Convert back to dataframe
+                metadata = pd.DataFrame(metadata_dct)
+                metadata.to_csv(path_or_buf=os.path.join(dataset, "metadata.csv"))
 
     # Read datasets
     for lst in parameters['datasets']:
@@ -65,11 +68,14 @@ def main(parfile):
     # Split dataset in train, dev (validation) and test
     train, validation, test = seisbench_dataset.train_dev_test()
 
-    # Copy tmp_metadata back to metadata
-    for lst in parameters['datasets']:
-        for dataset in lst.values():
-            # Copy metadata file
-            shutil.copyfile(src=os.path.join(dataset, "tmp_metadata.csv"), dst=os.path.join(dataset, "metadata.csv"))
+    # Copy tmp_metadata back to metadata and delete tmp_metadata.csv
+    if parameters.get("add_fake_events"):
+        for lst in parameters['datasets']:
+            for dataset in lst.values():
+                # Copy metadata file
+                shutil.copyfile(src=os.path.join(dataset, "tmp_metadata.csv"),
+                                dst=os.path.join(dataset, "metadata.csv"))
+                os.remove(path=os.path.join(dataset, "tmp_metadata.csv"))
 
     # # Add fake events to increase training data set (data augmentation)
     # # XXX Funktioniert nur fuer einen einzigen Datensatz
