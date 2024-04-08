@@ -37,6 +37,21 @@ def main(parfile):
     except shutil.SameFileError:
         pass
 
+    # Modifying metdata of datasets by adding fake events
+    for lst in parameters['datasets']:
+        for dataset in lst.values():
+            # Copy metadata file
+            shutil.copyfile(src=os.path.join(dataset, "metadata.csv"), dst=os.path.join(dataset, "tmp_metadata.csv"))
+            metadata = pd.read_csv(os.path.join(dataset, "metadata.csv"))
+            metadata_dct = metadata.to_dict(orient="list")
+            for i in range(parameters["add_fake_events"]):
+                rand_data_index = np.random.randint(0, len(metadata))
+                for key in metadata_dct:
+                    metadata_dct[key].append(metadata_dct[key][rand_data_index])
+            # Convert back to dataframe
+            metadata = pd.DataFrame(metadata_dct)
+            metadata.to_csv(path_or_buf=os.path.join(dataset, "metadata.csv"))
+
     # Read datasets
     for lst in parameters['datasets']:
         for dataset_count, dataset in enumerate(lst.values()):
@@ -50,15 +65,22 @@ def main(parfile):
     # Split dataset in train, dev (validation) and test
     train, validation, test = seisbench_dataset.train_dev_test()
 
-    # Add fake events to increase training data set (data augmentation)
-    if parameters.get("add_fake_events"):
-        if parameters["add_fake_events"] > 0:
-            metadata_dct = train.metadata.to_dict(orient="list")
-            for i in range(parameters["add_fake_events"]):
-                rand_data_index = np.random.randint(0, len(train.metadata))
-                for key in metadata_dct:
-                    metadata_dct[key].append(metadata_dct[key][rand_data_index])
-            train._metadata = pd.DataFrame(metadata_dct)
+    # Copy tmp_metadata back to metadata
+    for lst in parameters['datasets']:
+        for dataset in lst.values():
+            # Copy metadata file
+            shutil.copyfile(src=os.path.join(dataset, "tmp_metadata.csv"), dst=os.path.join(dataset, "metadata.csv"))
+
+    # # Add fake events to increase training data set (data augmentation)
+    # # XXX Funktioniert nur fuer einen einzigen Datensatz
+    # if parameters.get("add_fake_events"):
+    #     if parameters["add_fake_events"] > 0:
+    #         metadata_dct = train.metadata.to_dict(orient="list")
+    #         for i in range(parameters["add_fake_events"]):
+    #             rand_data_index = np.random.randint(0, len(train.metadata))
+    #             for key in metadata_dct:
+    #                 metadata_dct[key].append(metadata_dct[key][rand_data_index])
+    #         train._metadata = pd.DataFrame(metadata_dct)
 
     # Load model
     if parameters.get("preload_model"):
