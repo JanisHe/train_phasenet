@@ -37,7 +37,7 @@ def main(parfile):
     except shutil.SameFileError:
         pass
 
-    # Modifying metdata of datasets by adding fake events
+    # Modifying metadata of datasets by adding fake events
     if parameters.get("add_fake_events"):
         for lst in parameters['datasets']:
             for dataset in lst.values():
@@ -77,17 +77,6 @@ def main(parfile):
                                 dst=os.path.join(dataset, "metadata.csv"))
                 os.remove(path=os.path.join(dataset, "tmp_metadata.csv"))
 
-    # # Add fake events to increase training data set (data augmentation)
-    # # XXX Funktioniert nur fuer einen einzigen Datensatz
-    # if parameters.get("add_fake_events"):
-    #     if parameters["add_fake_events"] > 0:
-    #         metadata_dct = train.metadata.to_dict(orient="list")
-    #         for i in range(parameters["add_fake_events"]):
-    #             rand_data_index = np.random.randint(0, len(train.metadata))
-    #             for key in metadata_dct:
-    #                 metadata_dct[key].append(metadata_dct[key][rand_data_index])
-    #         train._metadata = pd.DataFrame(metadata_dct)
-
     # Load model
     if parameters.get("preload_model"):
         try:
@@ -104,6 +93,7 @@ def main(parfile):
     # Move model to GPU if GPU is available
     if torch.cuda.is_available() is True:
         model.cuda()
+        print("Running PhaseNet training on GPU.")
 
     # Define generators for training and validation
     train_generator = sbg.GenericGenerator(train)
