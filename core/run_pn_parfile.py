@@ -79,10 +79,7 @@ def main(parfile):
 
     # Load model
     if parameters.get("preload_model"):
-        try:
-            model = sbm.PhaseNet.from_pretrained(parameters["preload_model"])
-        except ValueError:
-            model = torch.load(parameters["preload_model"], map_location=torch.device('cpu'))
+        model = sbm.PhaseNet.from_pretrained(parameters["preload_model"])
     else:
         phases = parameters.get("phases")
         if not phases:
