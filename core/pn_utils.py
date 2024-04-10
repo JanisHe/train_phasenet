@@ -242,9 +242,9 @@ def residual_histogram(residuals, axes, bins=60, xlim=(-100, 100)):
 
 def add_metrics(axes, metrics: Metrics):
     # TODO: Add mean and standard deviation
-    textstr = (f"Precision: {np.round(metrics.precision(), 2)}\n"
-               f"Recall: {np.round(metrics.recall(), 2)}\n"
-               f"F1 score: {np.round(metrics.f1_score(), 2)}")
+    textstr = (f"Precision: {np.round(metrics.precision, 2)}\n"
+               f"Recall: {np.round(metrics.recall, 2)}\n"
+               f"F1 score: {np.round(metrics.f1_score, 2)}")
     props = dict(boxstyle='round', facecolor='white', alpha=0.5)
     axes.text(0.05, 0.95, textstr, transform=axes.transAxes, fontsize=10,
               verticalalignment='top', bbox=props)

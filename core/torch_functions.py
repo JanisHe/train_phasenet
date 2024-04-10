@@ -108,8 +108,8 @@ class Metrics:
 
     @property
     def f1_score(self, eps=1e-6) -> float:
-        return 2 * ((self.precision() * self.recall()) / (
-                    self.precision() + self.recall() + eps))
+        return 2 * ((self.precision * self.recall) / (
+                    self.precision + self.recall + eps))
 
 
 class VectorCrossEntropyLoss:
