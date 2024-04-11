@@ -170,8 +170,8 @@ def main(parfile):
         print("Precision S:", metrics_s.precision)
         print("Recall P:", metrics_p.recall)
         print("Recall S:", metrics_s.recall)
-        print("F1 P:", metrics_p.f1)
-        print("F1 S:", metrics_s.f1)
+        print("F1 P:", metrics_p.f1_score)
+        print("F1 S:", metrics_s.f1_score)
 
 
 if __name__ == "__main__":
