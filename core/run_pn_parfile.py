@@ -17,6 +17,7 @@ from torch.utils.data import DataLoader
 
 from pn_utils import get_phase_dict, test_model
 from torch_functions import train_model, VectorCrossEntropyLoss
+from utils import check_parameters
 
 
 def main(parfile):
@@ -37,23 +38,8 @@ def main(parfile):
     except shutil.SameFileError:
         pass
 
-    # Modifying metadata of datasets by adding fake events
-    if parameters.get("add_fake_events"):
-        for lst in parameters['datasets']:
-            for dataset in lst.values():
-                # Copy metadata file
-                shutil.copyfile(src=os.path.join(dataset, "metadata.csv"),
-                                dst=os.path.join(dataset, "tmp_metadata.csv"))
-                metadata = pd.read_csv(os.path.join(dataset, "metadata.csv"))
-                metadata_dct = metadata.to_dict(orient="list")
-                num_add_events = int(len(metadata) * parameters["add_fake_events"] / 100)
-                for i in range(num_add_events):
-                    rand_data_index = np.random.randint(0, len(metadata))
-                    for key in metadata_dct:
-                        metadata_dct[key].append(metadata_dct[key][rand_data_index])
-                # Convert back to dataframe
-                metadata = pd.DataFrame(metadata_dct)
-                metadata.to_csv(path_or_buf=os.path.join(dataset, "metadata.csv"))
+    # Check parameters and modify e.g. metadata
+    check_parameters(parameters=parameters)
 
     # Read datasets
     for lst in parameters['datasets']:

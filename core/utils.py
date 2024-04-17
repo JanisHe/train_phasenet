@@ -1,4 +1,10 @@
+import os
+import shutil
+import subprocess
+import pathlib
+
 import numpy as np
+import pandas as pd
 import obspy
 
 
@@ -158,3 +164,38 @@ def phase_color(phase):
         return "r"
     else:
         raise Exception
+
+
+def check_parameters(parameters: dict) -> dict:
+    """
+    Checks parameters from .yml file and corrects if necessary
+    """
+    # Modify datasets if tmpdir in parameters
+    if parameters.get("tmpdir"):
+        tmpdir = subprocess.check_output("cd $TMPDIR && pwd", shell=True)
+        tmpdir = tmpdir.decode("utf-8")
+        tmpdir = tmpdir.replace("\n", "")
+
+        # Modify datasets in parameters
+        for dname, pathname in parameters["datasets"][0].items():
+            parameters["datasets"][0][dname] = os.path.join(tmpdir, pathlib.Path(pathname).parts[-1])
+
+    # Modifying metadata of datasets by adding fake events
+    if parameters.get("add_fake_events"):
+        for lst in parameters['datasets']:
+            for dataset in lst.values():
+                # Copy metadata file
+                shutil.copyfile(src=os.path.join(dataset, "metadata.csv"),
+                                dst=os.path.join(dataset, "tmp_metadata.csv"))
+                metadata = pd.read_csv(os.path.join(dataset, "metadata.csv"))
+                metadata_dct = metadata.to_dict(orient="list")
+                num_add_events = int(len(metadata) * parameters["add_fake_events"] / 100)
+                for i in range(num_add_events):
+                    rand_data_index = np.random.randint(0, len(metadata))
+                    for key in metadata_dct:
+                        metadata_dct[key].append(metadata_dct[key][rand_data_index])
+                # Convert back to dataframe
+                metadata = pd.DataFrame(metadata_dct)
+                metadata.to_csv(path_or_buf=os.path.join(dataset, "metadata.csv"))
+
+    return parameters
