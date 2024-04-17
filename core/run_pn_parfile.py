@@ -39,7 +39,7 @@ def main(parfile):
         pass
 
     # Check parameters and modify e.g. metadata
-    check_parameters(parameters=parameters)
+    parameters = check_parameters(parameters=parameters)
 
     # Read datasets
     for lst in parameters['datasets']:
