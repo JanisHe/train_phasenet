@@ -1,0 +1,13 @@
+nsamples: 3001
+sampling_rate: 100
+labeler: gaussian
+sigma: 10                # Muss mit Modell übereinstimmen!
+datasets:
+  - stead: /home/jheuel/scratch/ai_datasets/stead
+batch_size: 512
+nworkers: 4
+model: /home/jheuel/code/train_phasenet/models/stead4096_lr0_01.pth
+# preload_model: stead
+win_len_factor: 10
+true_pick_prob: 0.2
+arrival_residual: 25  # Residual in samples
