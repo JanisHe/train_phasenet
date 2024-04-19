@@ -113,7 +113,7 @@ def main(parfile):
     loss_fn = VectorCrossEntropyLoss()
 
     # specify learning rate and optimizer
-    if isinstance(parameters["learning_rate"], float):
+    if isinstance(parameters["learning_rate"], float) or isinstance(parameters["learning_rate"], int):
         lr = parameters["learning_rate"]
     elif isinstance(parameters["learning_rate"], dict):
         lr = parameters["learning_rate"]["initial_lr"]
@@ -122,12 +122,13 @@ def main(parfile):
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     # Decaying learning rate
-    if isinstance(parameters["learning_rate"], dict):
+    if isinstance(parameters["learning_rate"], dict) and parameters["learning_rate"].get("decay") is True:
         scheduler = optim.lr_scheduler.StepLR(optimizer,
                                               step_size=parameters["learning_rate"]["step_size"],
                                               gamma=parameters["learning_rate"]["gamma"])
     else:
         scheduler = None
+    print(scheduler)
 
     model, train_loss, val_loss = train_model(model=model,
                                               patience=parameters["patience"],
