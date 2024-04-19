@@ -154,12 +154,14 @@ def get_predicted_pick(prediction: torch.Tensor, index: int, true_pick: (int, No
     prediction = prediction.cpu()
 
     # Find maximum of predicted pick
-    try:
-        pred_pick_index = np.argmax(prediction[index, phase_index, true_pick - int(win_len_factor * sigma):   # TODO: Grenzwert von +- x * sigma
-                                               true_pick + int(win_len_factor * sigma)]
-                                    .detach().numpy())
-    except ValueError:
-        print()   # TODO: Was soll das denn?
+    lower_bound = true_pick - int(win_len_factor * sigma)
+    upper_bound = true_pick + int(win_len_factor * sigma)
+    if lower_bound < 0:
+        lower_bound = 0
+    if upper_bound > prediction.shape[2]:
+        upper_bound = prediction.shape[2]
+    pred_pick_index = np.argmax(prediction[index, phase_index, lower_bound:upper_bound].detach().numpy())
+
     # Add offset to pred_pick_index
     pred_pick_index += true_pick - int(win_len_factor * sigma)
 
@@ -262,7 +264,7 @@ def test_model(model: seisbench.models.phasenet.PhaseNet,
     augmentations = [
         sbg.WindowAroundSample(list(get_phase_dict().keys()), samples_before=int(parameters["nsamples"] / 3),
                                windowlen=parameters["nsamples"],
-                               selection="first", strategy="variable"),
+                               selection="first", strategy="move"),
         sbg.Normalize(demean_axis=-1, amp_norm_axis=-1, amp_norm_type=model.norm),
         sbg.ChangeDtype(np.float32),
         sbg.ProbabilisticLabeller(label_columns=get_phase_dict(), sigma=parameters["sigma"], dim=0,
