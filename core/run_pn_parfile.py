@@ -14,6 +14,7 @@ import seisbench.generate as sbg
 import seisbench.models as sbm
 from seisbench.util import worker_seeding
 from torch.utils.data import DataLoader
+import torch.optim as optim
 
 from pn_utils import get_phase_dict, test_model
 from torch_functions import train_model, VectorCrossEntropyLoss
@@ -111,15 +112,30 @@ def main(parfile):
     # specify loss function
     loss_fn = VectorCrossEntropyLoss()
 
-    # specify optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=parameters["learning_rate"])
+    # specify learning rate and optimizer
+    if isinstance(parameters["learning_rate"], float):
+        lr = parameters["learning_rate"]
+    elif isinstance(parameters["learning_rate"], dict):
+        lr = parameters["learning_rate"]["initial_lr"]
+    else:
+        raise ValueError("learning rate is not defined.")
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+
+    # Decaying learning rate
+    if isinstance(parameters["learning_rate"], dict):
+        scheduler = optim.lr_scheduler.StepLR(optimizer,
+                                              step_size=parameters["learning_rate"]["step_size"],
+                                              gamma=parameters["learning_rate"]["gamma"])
+    else:
+        scheduler = None
 
     model, train_loss, val_loss = train_model(model=model,
                                               patience=parameters["patience"],
                                               epochs=parameters["epochs"],
                                               loss_fn=loss_fn, optimizer=optimizer,
                                               train_loader=train_loader,
-                                              validation_loader=val_loader)
+                                              validation_loader=val_loader,
+                                              lr_scheduler=scheduler)
 
     # Save model
     head, tail = os.path.split(parameters["model_name"])

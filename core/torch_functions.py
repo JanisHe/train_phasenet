@@ -152,7 +152,7 @@ class MeanSquaredError:
 
 
 def train_model(model, train_loader, validation_loader, loss_fn,
-                optimizer=None, epochs=50, patience=5):
+                optimizer=None, epochs=50, patience=5, lr_scheduler=None):
     """
 
     """
@@ -216,6 +216,10 @@ def train_model(model, train_loader, validation_loader, loss_fn,
         # Clear training and validation loss lists for next epoch
         train_loss = []
         valid_loss = []
+
+        # Update learning rate
+        if lr_scheduler:
+            lr_scheduler.step()
 
         # early_stopping needs the validation loss to check if it has decresed,
         # and if it has, it will make a checkpoint of the current model
