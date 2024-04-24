@@ -4,6 +4,7 @@ import shutil
 import pathlib
 import yaml
 import torch
+import requests
 
 from pathlib import Path
 import numpy as np
@@ -66,7 +67,14 @@ def main(parfile):
 
     # Load model
     if parameters.get("preload_model"):
-        model = sbm.PhaseNet.from_pretrained(parameters["preload_model"])
+        try:
+            model = sbm.PhaseNet.from_pretrained(parameters["preload_model"])
+        except requests.exceptions.ConnectionError as e:
+            if os.path.isfile(parameters["preload_model"]) is True:
+                model = torch.load(parameters["preload_model"], map_location=torch.device("cpu"))
+            else:
+                msg = f"{e}\nDid not find {parameters['preload_model']}."
+                raise IOError(msg)
     else:
         phases = parameters.get("phases")
         if not phases:
