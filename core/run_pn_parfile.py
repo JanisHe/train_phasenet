@@ -19,7 +19,7 @@ import torch.optim as optim
 
 from pn_utils import get_phase_dict, test_model
 from torch_functions import train_model, VectorCrossEntropyLoss
-from utils import check_parameters
+from utils import check_parameters, read_datasets
 
 
 def main(parfile):
@@ -43,15 +43,12 @@ def main(parfile):
     # Check parameters and modify e.g. metadata
     parameters = check_parameters(parameters=parameters)
 
-    # Read datasets
-    for lst in parameters['datasets']:
-        for dataset_count, dataset in enumerate(lst.values()):
-            if dataset_count == 0:
-                seisbench_dataset = sbd.WaveformDataset(path=Path(dataset),
-                                                        sampling_rate=parameters["sampling_rate"])
-            else:
-                seisbench_dataset += sbd.WaveformDataset(path=Path(dataset),
-                                                         sampling_rate=parameters["sampling_rate"])
+    # Read waveform datasets
+    seisbench_dataset = read_datasets(parameters=parameters, dataset_key="datasets")
+
+    # Load noise_dataset data set
+    if parameters.get("noise_datasets"):
+        noise_dataset = read_datasets(parameters=parameters, dataset_key="noise_datasets")
 
     # Split dataset in train, dev (validation) and test
     train, validation, test = seisbench_dataset.train_dev_test()
@@ -104,6 +101,10 @@ def main(parfile):
                                   dim=0, model_labels=model.labels, noise_column=True)
     ]
 
+    # Add RealNoise to augmentations if noise_datasets are in parmeters
+    if parameters.get("noise_datasets"):
+        augmentations.append(sbg.RealNoise(noise_dataset=noise_dataset))
+
     # Add augmentations to generators
     train_generator.add_augmentations(augmentations=augmentations)
     val_generator.add_augmentations(augmentations=augmentations)
@@ -136,7 +137,6 @@ def main(parfile):
                                               gamma=parameters["learning_rate"]["gamma"])
     else:
         scheduler = None
-    print(scheduler)
 
     model, train_loss, val_loss = train_model(model=model,
                                               patience=parameters["patience"],

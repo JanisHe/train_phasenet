@@ -7,6 +7,8 @@ import numpy as np
 import pandas as pd
 import obspy
 
+import seisbench.data as sbd
+
 
 def rms(x):
     """
@@ -199,3 +201,19 @@ def check_parameters(parameters: dict) -> dict:
                 metadata.to_csv(path_or_buf=os.path.join(dataset, "metadata.csv"))
 
     return parameters
+
+
+def read_datasets(parameters: dict, dataset_key: str = "datasets"):
+    """
+    Read seisbench dataset from parameter file.
+    """
+    for lst in parameters[dataset_key]:
+        for dataset_count, dataset in enumerate(lst.values()):
+            if dataset_count == 0:
+                sb_dataset = sbd.WaveformDataset(path=pathlib.Path(dataset),
+                                                 sampling_rate=parameters["sampling_rate"])
+            else:
+                sb_dataset += sbd.WaveformDataset(path=pathlib.Path(dataset),
+                                                  sampling_rate=parameters["sampling_rate"])
+
+    return sb_dataset
