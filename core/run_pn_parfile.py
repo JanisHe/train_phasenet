@@ -103,7 +103,10 @@ def main(parfile):
 
     # Add RealNoise to augmentations if noise_datasets are in parmeters
     if parameters.get("noise_datasets"):
-        augmentations.append(sbg.RealNoise(noise_dataset=noise_dataset))
+        augmentations.append(sbg.RealNoise(noise_dataset=noise_dataset,
+                                           metadata_thresholds=dict(
+                                               trace_Z_snr_db=10
+                                           )))
 
     # Add augmentations to generators
     train_generator.add_augmentations(augmentations=augmentations)
