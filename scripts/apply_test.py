@@ -4,12 +4,13 @@ import numpy as np
 import torch
 import yaml
 from torch.utils.data import DataLoader
-from pathlib import Path
-import seisbench.data as sbd
 import seisbench.models as sbm
+import seisbench.generate as sbg
+from seisbench.util import worker_seeding
 import matplotlib.pyplot as plt
 
-from core.pn_utils import get_phase_dict, test_model
+from core.pn_utils import get_phase_dict, test_model, get_picks
+from core.utils import is_nan, read_datasets
 
 
 def main(parfile):
@@ -32,14 +33,7 @@ def main(parfile):
         raise ValueError(msg)
 
     # Read datasets
-    for lst in parameters['datasets']:
-        for dataset_count, dataset in enumerate(lst.values()):
-            if dataset_count == 0:
-                seisbench_dataset = sbd.WaveformDataset(path=Path(dataset),
-                                                        sampling_rate=parameters["sampling_rate"])
-            else:
-                seisbench_dataset += sbd.WaveformDataset(path=Path(dataset),
-                                                         sampling_rate=parameters["sampling_rate"])
+    seisbench_dataset = read_datasets(parameters=parameters, dataset_key="datasets")
 
     # Split dataset in train, dev (validation) and test
     train, validation, test = seisbench_dataset.train_dev_test()
@@ -53,6 +47,72 @@ def main(parfile):
     print("Recall S:", metrics_s.recall)
     print("F1 P:", metrics_p.f1_score)
     print("F1 S:", metrics_s.f1_score)
+
+
+def misclassified_data(parfile, probability=None):
+    """
+    Finding missclassifications from test data sets
+    """
+    with open(parfile, "r") as file:
+        parameters = yaml.safe_load(file)
+
+    # Load model
+    if parameters.get("model"):
+        parameters["filename"] = pathlib.Path(parameters["model"]).stem
+        model = torch.load(parameters.pop("model"), map_location=torch.device("cpu"))
+    elif parameters.get("preload_model"):
+        model = sbm.PhaseNet.from_pretrained(parameters["preload_model"])
+        parameters["filename"] = parameters["preload_model"]
+    else:
+        msg = "Whether model nor preload_model is defined in parfile."
+        raise ValueError(msg)
+
+    # Read datasets
+    seisbench_dataset = read_datasets(parameters=parameters, dataset_key="datasets")
+
+    # Split dataset in train, dev (validation) and test
+    train, validation, test = seisbench_dataset.train_dev_test()
+
+    # Test model for given probability in parameters or given probability from arguments
+    if probability:
+        parameters["true_pick_prob"] = probability
+
+    test_generator = sbg.GenericGenerator(test)
+
+    augmentations = [
+        sbg.WindowAroundSample(list(get_phase_dict().keys()), samples_before=int(parameters["nsamples"] / 3),
+                               windowlen=parameters["nsamples"],
+                               selection="first", strategy="move"),
+        sbg.Normalize(demean_axis=-1, amp_norm_axis=-1, amp_norm_type=model.norm),
+        sbg.ChangeDtype(np.float32),
+        sbg.ProbabilisticLabeller(label_columns=get_phase_dict(), sigma=parameters["sigma"], dim=0,
+                                  model_labels=model.labels, noise_column=True)
+    ]
+    test_generator.add_augmentations(augmentations)
+    test_loader = DataLoader(dataset=test_generator, batch_size=parameters["batch_size"],
+                             shuffle=False, num_workers=parameters["nworkers"],
+                             worker_init_fn=worker_seeding, drop_last=False)
+
+    picks_and_probs = get_picks(model=model, dataloader=test_loader, sigma=parameters["sigma"],
+                                win_len_factor=parameters["win_len_factor"], return_data=True)
+    
+    # Finding wrong classified data, i.e. finding false positives and negatives
+    for index, (pred_sample, pred_prob, residual) in enumerate(zip(picks_and_probs["pred_P"], picks_and_probs["prob_P"], picks_and_probs["residual_P"])):
+        if not is_nan(pred_sample):
+            if pred_prob >= parameters["true_pick_prob"] and abs(residual) > parameters["arrival_residual"]:
+                print(picks_and_probs["true_P"][index], residual, "FP")
+                ax1 = plt.subplot(211)
+                ax1.plot(picks_and_probs["data"][index, :, :].T)
+                ax2 = plt.subplot(212, sharex=ax1)
+                ax2.plot(picks_and_probs["prediction"][index, :, :].T)
+                plt.show()
+            elif pred_prob < parameters["true_pick_prob"] and abs(residual) > parameters["arrival_residual"]:
+                print(picks_and_probs["true_P"][index], residual, "FN")
+                ax1 = plt.subplot(211)
+                ax1.plot(picks_and_probs["data"][index, :, :].T)
+                ax2 = plt.subplot(212, sharex=ax1)
+                ax2.plot(picks_and_probs["prediction"][index, :, :].T)
+                plt.show()
 
 
 def probabilities(parfile):
@@ -74,14 +134,7 @@ def probabilities(parfile):
         raise ValueError(msg)
 
     # Read datasets
-    for lst in parameters['datasets']:
-        for dataset_count, dataset in enumerate(lst.values()):
-            if dataset_count == 0:
-                seisbench_dataset = sbd.WaveformDataset(path=Path(dataset),
-                                                        sampling_rate=parameters["sampling_rate"])
-            else:
-                seisbench_dataset += sbd.WaveformDataset(path=Path(dataset),
-                                                         sampling_rate=parameters["sampling_rate"])
+    seisbench_dataset = read_datasets(parameters=parameters, dataset_key="datasets")
 
     # Split dataset in train, dev (validation) and test
     train, validation, test = seisbench_dataset.train_dev_test()
@@ -140,3 +193,4 @@ if __name__ == "__main__":
     parfile = "/home/jheuel/code/train_phasenet/test_model.yml"
     # main(parfile)
     probabilities(parfile)
+    # misclassified_data(parfile)
