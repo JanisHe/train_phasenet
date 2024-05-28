@@ -94,12 +94,14 @@ def main(parfile):
                                windowlen=2 * parameters["nsamples"], selection="random",
                                strategy="variable"),
         sbg.RandomWindow(windowlen=parameters["nsamples"], strategy="pad"),
-        sbg.RotateHorizontalComponents(),
         sbg.Normalize(demean_axis=-1, amp_norm_axis=-1, amp_norm_type=model.norm),
         sbg.ChangeDtype(np.float32),
         sbg.ProbabilisticLabeller(label_columns=get_phase_dict(), sigma=parameters["sigma"],
                                   dim=0, model_labels=model.labels, noise_column=True)
     ]
+
+    if parameters.get("rotate") is True:
+        augmentations.append(sbg.RotateHorizontalComponents())
 
     # Add RealNoise to augmentations if noise_datasets are in parmeters
     if parameters.get("noise_datasets"):
