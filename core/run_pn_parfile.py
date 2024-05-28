@@ -66,7 +66,7 @@ def main(parfile):
     if parameters.get("preload_model"):
         try:
             model = sbm.PhaseNet.from_pretrained(parameters["preload_model"])
-        except requests.exceptions.ConnectionError as e:
+        except (ValueError, requests.exceptions.ConnectionError) as e:
             if os.path.isfile(parameters["preload_model"]) is True:
                 model = torch.load(parameters["preload_model"], map_location=torch.device("cpu"))
             else:
