@@ -169,6 +169,9 @@ def train_model(model, train_loader, validation_loader, loss_fn,
     # Initialize early stopping class
     early_stopping = EarlyStopping(patience=patience, verbose=False, path_checkpoint=None)
 
+    for param in model.down_branch:
+        param.requires_grad = False
+
     # Loop over each epoch to start training
     for epoch in range(epochs):
         # Train model (loop over each batch; batch_size is defined in DataLoader)
