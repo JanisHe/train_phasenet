@@ -96,7 +96,8 @@ def main(parfile):
         sbg.RandomWindow(windowlen=parameters["nsamples"], strategy="pad"),
         sbg.Normalize(demean_axis=-1, amp_norm_axis=-1, amp_norm_type=model.norm),
         sbg.ChangeDtype(np.float32),
-        sbg.ProbabilisticLabeller(label_columns=get_phase_dict(), sigma=parameters["sigma"],
+        sbg.ProbabilisticLabeller(shape=parameters["labeler"],
+                                  label_columns=get_phase_dict(), sigma=parameters["sigma"],
                                   dim=0, model_labels=model.labels, noise_column=True)
     ]
 
