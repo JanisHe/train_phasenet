@@ -49,9 +49,9 @@ def main(parfile):
     # Filter data set
     if parameters.get("filter"):
         if parameters["filter"]["operation"] == "<":
-            mask = seisbench_dataset.metadata[parameters["filter"]["item"]] < 20
+            mask = seisbench_dataset.metadata[parameters["filter"]["item"]] < parameters["filter"]["threshold"]
         elif parameters["filter"]["operation"] == ">":
-            mask = seisbench_dataset.metadata[parameters["filter"]["item"]] > 20
+            mask = seisbench_dataset.metadata[parameters["filter"]["item"]] > parameters["filter"]["threshold"]
         else:
             msg = f'Filter operation {parameters["filter"]["operation"]} is not known'
             raise ValueError(msg)
