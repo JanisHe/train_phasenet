@@ -203,7 +203,26 @@ def check_parameters(parameters: dict) -> dict:
     return parameters
 
 
-def read_datasets(parameters: dict, dataset_key: str = "datasets"):
+def filter_dataset(filter: dict, dataset: sbd.WaveformDataset):
+    """
+    Filtering metadata of seisbench dataset. Since filtering is inplace, nothing is returned.
+    keywords of filter:
+    - operation: "<" or ">"
+    - item: which column in metadata
+    - threshold: value for threshold
+    """
+    if filter["operation"] == "<":
+        mask = dataset.metadata[filter["item"]] < filter["threshold"]
+    elif filter["operation"] == ">":
+        mask = dataset.metadata[filter["item"]] > filter["threshold"]
+    else:
+        msg = f'Filter operation {filter["operation"]} is not known'
+        raise ValueError(msg)
+
+    dataset.filter(mask, inplace=True)
+
+
+def read_datasets(parameters: dict, dataset_key: str = "datasets", filter: (dict, None) = None):
     """
     Read seisbench dataset from parameter file.
     """
@@ -212,8 +231,13 @@ def read_datasets(parameters: dict, dataset_key: str = "datasets"):
             if dataset_count == 0:
                 sb_dataset = sbd.WaveformDataset(path=pathlib.Path(dataset),
                                                  sampling_rate=parameters["sampling_rate"])
+                if filter:
+                    filter_dataset(filter=filter, dataset=sb_dataset)
             else:
-                sb_dataset += sbd.WaveformDataset(path=pathlib.Path(dataset),
-                                                  sampling_rate=parameters["sampling_rate"])
+                subset = sbd.WaveformDataset(path=pathlib.Path(dataset),
+                                             sampling_rate=parameters["sampling_rate"])
+                if filter:
+                    filter_dataset(filter=filter, dataset=subset)
+                sb_dataset += subset
 
     return sb_dataset

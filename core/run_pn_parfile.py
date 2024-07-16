@@ -44,18 +44,9 @@ def main(parfile):
     parameters = check_parameters(parameters=parameters)
 
     # Read waveform datasets
-    seisbench_dataset = read_datasets(parameters=parameters, dataset_key="datasets")
-
-    # Filter data set
-    if parameters.get("filter"):
-        if parameters["filter"]["operation"] == "<":
-            mask = seisbench_dataset.metadata[parameters["filter"]["item"]] < parameters["filter"]["threshold"]
-        elif parameters["filter"]["operation"] == ">":
-            mask = seisbench_dataset.metadata[parameters["filter"]["item"]] > parameters["filter"]["threshold"]
-        else:
-            msg = f'Filter operation {parameters["filter"]["operation"]} is not known'
-            raise ValueError(msg)
-        seisbench_dataset.filter(mask)
+    seisbench_dataset = read_datasets(parameters=parameters,
+                                      dataset_key="datasets",
+                                      filter=parameters.get("filter"))
 
     # Load noise_dataset data set
     if parameters.get("noise_datasets"):
