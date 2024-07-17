@@ -91,11 +91,15 @@ def main(parfile):
     val_generator = sbg.GenericGenerator(validation)
 
     # Build augmentations and labels
+    # Ensure that all phases are in requested window
     augmentations = [
-        sbg.WindowAroundSample(list(get_phase_dict().keys()), samples_before=parameters["nsamples"],
-                               windowlen=2 * parameters["nsamples"], selection="random",
+        sbg.WindowAroundSample(list(get_phase_dict().keys()),
+                               samples_before=int(0.8 * parameters["nsamples"]),
+                               windowlen=int(1.5 * parameters["nsamples"]),
+                               selection="first",
                                strategy="variable"),
-        sbg.RandomWindow(windowlen=parameters["nsamples"], strategy="pad"),
+        sbg.RandomWindow(windowlen=parameters["nsamples"],
+                         strategy="move"),
         sbg.Normalize(demean_axis=-1, amp_norm_axis=-1, amp_norm_type=model.norm),
         sbg.ChangeDtype(np.float32),
         sbg.ProbabilisticLabeller(shape=parameters["labeler"],
