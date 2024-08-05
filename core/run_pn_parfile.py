@@ -98,7 +98,6 @@ def main(parfile):
         sbg.RandomWindow(windowlen=parameters["nsamples"],
                          strategy="move"),
         sbg.Normalize(demean_axis=-1, amp_norm_axis=-1, amp_norm_type=model.norm),
-        sbg.ChangeDtype(np.float32),
         sbg.ProbabilisticLabeller(shape=parameters["labeler"],
                                   label_columns=get_phase_dict(), sigma=parameters["sigma"],
                                   dim=0, model_labels=model.labels, noise_column=True)
@@ -110,10 +109,14 @@ def main(parfile):
     # Add RealNoise to augmentations if noise_datasets are in parmeters
     if parameters.get("noise_datasets"):
         noise_dataset = read_datasets(parameters=parameters, dataset_key="noise_datasets")
+        # TODO: trace_Z_snr is hard coded
         augmentations.append(sbg.RealNoise(noise_dataset=noise_dataset,
                                            metadata_thresholds=dict(
                                                trace_Z_snr_db=10
                                            )))
+
+    # Change dtype of data (necessary for PyTorch and the last augmentation step)
+    augmentations.append(sbg.ChangeDtype(np.float32))
 
     # Add augmentations to generators
     train_generator.add_augmentations(augmentations=augmentations)
