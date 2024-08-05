@@ -171,22 +171,22 @@ def main(parfile):
         torch.save(model, parameters['model_name'])
     print(f"Saved model as {parameters['model_name']}.")
 
+    # Plot training and validation loss
+    fig_loss = plt.figure()
+    ax = fig_loss.add_subplot(111)
+    ax.plot(np.arange(len(train_loss)), train_loss, label="train")
+    ax.plot(np.arange(len(val_loss)), val_loss, label="test")
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Loss")
+    ax.legend()
+
+    # Save figure
+    if os.path.isdir(os.path.join(".", "loss_figures")) is False:
+        os.makedirs(os.path.join(".", "loss_figures"))
+    fig_loss.savefig(os.path.join(".", "loss_figures", f"{filename}.png"))
+
     # Test model if test data are available
     if len(test) > 0:
-        # Plot training and validation loss
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        ax.plot(np.arange(len(train_loss)), train_loss, label="train")
-        ax.plot(np.arange(len(val_loss)), val_loss, label="test")
-        ax.set_xlabel("Epoch")
-        ax.set_ylabel("Loss")
-        ax.legend()
-
-        # Save figure
-        if os.path.isdir(os.path.join(".", "loss_figures")) is False:
-            os.makedirs(os.path.join(".", "loss_figures"))
-        plt.savefig(os.path.join(".", "loss_figures", f"{filename}.png"))
-
         # Test model on test data from dataset for different probabilities
         precision_p, precision_s = [], []
         recalls_p, recalls_s = [], []
