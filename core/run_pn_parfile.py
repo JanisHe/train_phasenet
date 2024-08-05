@@ -49,10 +49,6 @@ def main(parfile):
                                       dataset_key="datasets",
                                       filter=parameters.get("filter"))
 
-    # Load noise_dataset data set
-    if parameters.get("noise_datasets"):
-        noise_dataset = read_datasets(parameters=parameters, dataset_key="noise_datasets")
-
     # Split dataset in train, dev (validation) and test
     train, validation, test = seisbench_dataset.train_dev_test()
 
@@ -113,6 +109,7 @@ def main(parfile):
 
     # Add RealNoise to augmentations if noise_datasets are in parmeters
     if parameters.get("noise_datasets"):
+        noise_dataset = read_datasets(parameters=parameters, dataset_key="noise_datasets")
         augmentations.append(sbg.RealNoise(noise_dataset=noise_dataset,
                                            metadata_thresholds=dict(
                                                trace_Z_snr_db=10
