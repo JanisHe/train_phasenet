@@ -97,7 +97,6 @@ def main(parfile):
                                strategy="variable"),
         sbg.RandomWindow(windowlen=parameters["nsamples"],
                          strategy="move"),
-        sbg.Normalize(demean_axis=-1, amp_norm_axis=-1, amp_norm_type=model.norm),
         sbg.ProbabilisticLabeller(shape=parameters["labeler"],
                                   label_columns=get_phase_dict(), sigma=parameters["sigma"],
                                   dim=0, model_labels=model.labels, noise_column=True)
@@ -122,6 +121,7 @@ def main(parfile):
 
     # Change dtype of data (necessary for PyTorch and the last augmentation step)
     augmentations.append(sbg.ChangeDtype(np.float32))
+    augmentations.append(sbg.Normalize(demean_axis=-1, amp_norm_axis=-1, amp_norm_type=model.norm))
 
     # Add augmentations to generators
     train_generator.add_augmentations(augmentations=augmentations)
