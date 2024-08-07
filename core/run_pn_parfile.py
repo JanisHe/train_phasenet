@@ -110,10 +110,15 @@ def main(parfile):
     if parameters.get("noise_datasets"):
         noise_dataset = read_datasets(parameters=parameters, dataset_key="noise_datasets")
         # TODO: trace_Z_snr is hard coded
-        augmentations.append(sbg.RealNoise(noise_dataset=noise_dataset,
-                                           metadata_thresholds=dict(
-                                               trace_Z_snr_db=10
-                                           )))
+        augmentations.append(
+            sbg.OneOf(
+                augmentations=[sbg.RealNoise(
+                    noise_dataset=noise_dataset,
+                    metadata_thresholds={"trace_Z_snr_db": 10}
+                )],
+                probabilities=[0.5]
+            )
+        )
 
     # Change dtype of data (necessary for PyTorch and the last augmentation step)
     augmentations.append(sbg.ChangeDtype(np.float32))
