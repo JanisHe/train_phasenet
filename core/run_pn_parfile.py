@@ -120,8 +120,8 @@ def main(parfile):
         )
 
     # Change dtype of data (necessary for PyTorch and the last augmentation step)
-    augmentations.append(sbg.ChangeDtype(np.float32))
     augmentations.append(sbg.Normalize(demean_axis=-1, amp_norm_axis=-1, amp_norm_type=model.norm))
+    augmentations.append(sbg.ChangeDtype(np.float32))
 
     # Add augmentations to generators
     train_generator.add_augmentations(augmentations=augmentations)
