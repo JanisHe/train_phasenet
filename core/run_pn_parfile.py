@@ -20,7 +20,7 @@ import torch.optim as optim
 
 from pn_utils import get_phase_dict, test_model
 from torch_functions import train_model, VectorCrossEntropyLoss
-from utils import check_parameters, read_datasets
+from utils import check_parameters, read_datasets, add_fake_events_to_metadata
 
 
 def main(parfile):
@@ -49,17 +49,13 @@ def main(parfile):
                                       dataset_key="datasets",
                                       filter=parameters.get("filter"))
 
+    # Add fake events to metadata
+    if parameters.get("add_fake_events"):
+        add_fake_events_to_metadata(sb_dataset=seisbench_dataset,
+                                    number=int(len(seisbench_dataset) * parameters["add_fake_events"] / 100))
+
     # Split dataset in train, dev (validation) and test
     train, validation, test = seisbench_dataset.train_dev_test()
-
-    # Copy tmp_metadata back to metadata and delete tmp_metadata.csv
-    if parameters.get("add_fake_events"):
-        for lst in parameters['datasets']:
-            for dataset in lst.values():
-                # Copy metadata file
-                shutil.copyfile(src=os.path.join(dataset, "tmp_metadata.csv"),
-                                dst=os.path.join(dataset, "metadata.csv"))
-                os.remove(path=os.path.join(dataset, "tmp_metadata.csv"))
 
     # Load model
     if parameters.get("preload_model"):

@@ -184,40 +184,6 @@ def check_parameters(parameters: dict) -> dict:
         for dname, pathname in parameters["datasets"][0].items():
             parameters["datasets"][0][dname] = os.path.join(tmpdir, pathlib.Path(pathname).parts[-1])
 
-    # Modifying metadata of datasets by adding fake events
-    if parameters.get("add_fake_events"):
-        for lst in parameters['datasets']:
-            with tqdm(total=len(lst), desc=f"Modifying metadata...", ncols=100,
-                      bar_format="{l_bar}{bar} [Elapsed time: {elapsed} {postfix}]") as pbar:
-                for dataset in lst.values():
-                    pbar.set_postfix({"Dataset": dataset})
-
-                    # Copy metadata file
-                    shutil.copyfile(src=os.path.join(dataset, "metadata.csv"),
-                                    dst=os.path.join(dataset, "tmp_metadata.csv"))
-
-                    # Catch warning for mixed dtype
-                    warnings.filterwarnings("ignore", category=pd.errors.DtypeWarning)
-                    metadata = pd.read_csv(os.path.join(dataset, "metadata.csv"),
-                                           dtype={
-                                               "trace_sampling_rate_hz": float,
-                                               "trace_dt_s": float,
-                                               "trace_component_order": str
-                                           }
-                                           )
-
-                    metadata_dct = metadata.to_dict(orient="list")
-                    num_add_events = int(len(metadata) * parameters["add_fake_events"] / 100)
-                    for i in range(num_add_events):
-                        rand_data_index = np.random.randint(0, len(metadata))
-                        for key in metadata_dct:
-                            metadata_dct[key].append(metadata_dct[key][rand_data_index])
-                    # Convert back to dataframe
-                    metadata = pd.DataFrame(metadata_dct)
-                    metadata.to_csv(path_or_buf=os.path.join(dataset, "metadata.csv"))
-
-                    pbar.update()
-
     return parameters
 
 
@@ -259,3 +225,18 @@ def read_datasets(parameters: dict, dataset_key: str = "datasets", filter: (dict
                 sb_dataset += subset
 
     return sb_dataset
+
+
+def add_fake_events_to_metadata(sb_dataset: sbd.WaveformDataset,
+                                number: int):
+    """
+    Copying metadata to add fake events
+    """
+    # Convert metadata to dictionary
+    metadata_dct = sb_dataset.metadata.to_dict(orient="list")
+    for i in range(number):
+        rand_data_index = np.random.randint(0, len(sb_dataset.metadata))
+        for key in metadata_dct:
+            metadata_dct[key].append(metadata_dct[key][rand_data_index])
+    metadata = pd.DataFrame(metadata_dct)
+    sb_dataset._metadata = metadata
