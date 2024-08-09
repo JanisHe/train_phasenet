@@ -9,6 +9,7 @@ import pandas as pd
 import obspy
 
 import seisbench.data as sbd
+from tqdm import tqdm
 
 
 def rms(x):
@@ -186,30 +187,36 @@ def check_parameters(parameters: dict) -> dict:
     # Modifying metadata of datasets by adding fake events
     if parameters.get("add_fake_events"):
         for lst in parameters['datasets']:
-            for dataset in lst.values():
-                # Copy metadata file
-                shutil.copyfile(src=os.path.join(dataset, "metadata.csv"),
-                                dst=os.path.join(dataset, "tmp_metadata.csv"))
+            with tqdm(total=len(lst), desc=f"Modifying metadata...", ncols=100,
+                      bar_format="{l_bar}{bar} [Elapsed time: {elapsed} {postfix}]") as pbar:
+                for dataset in lst.values():
+                    pbar.set_postfix({"Dataset": dataset})
 
-                # Catch warning for mixed dtype
-                warnings.filterwarnings("ignore", category=pd.errors.DtypeWarning)
-                metadata = pd.read_csv(os.path.join(dataset, "metadata.csv"),
-                                       dtype={
-                                           "trace_sampling_rate_hz": float,
-                                           "trace_dt_s": float,
-                                           "trace_component_order": str
-                                       }
-                                       )
+                    # Copy metadata file
+                    shutil.copyfile(src=os.path.join(dataset, "metadata.csv"),
+                                    dst=os.path.join(dataset, "tmp_metadata.csv"))
 
-                metadata_dct = metadata.to_dict(orient="list")
-                num_add_events = int(len(metadata) * parameters["add_fake_events"] / 100)
-                for i in range(num_add_events):
-                    rand_data_index = np.random.randint(0, len(metadata))
-                    for key in metadata_dct:
-                        metadata_dct[key].append(metadata_dct[key][rand_data_index])
-                # Convert back to dataframe
-                metadata = pd.DataFrame(metadata_dct)
-                metadata.to_csv(path_or_buf=os.path.join(dataset, "metadata.csv"))
+                    # Catch warning for mixed dtype
+                    warnings.filterwarnings("ignore", category=pd.errors.DtypeWarning)
+                    metadata = pd.read_csv(os.path.join(dataset, "metadata.csv"),
+                                           dtype={
+                                               "trace_sampling_rate_hz": float,
+                                               "trace_dt_s": float,
+                                               "trace_component_order": str
+                                           }
+                                           )
+
+                    metadata_dct = metadata.to_dict(orient="list")
+                    num_add_events = int(len(metadata) * parameters["add_fake_events"] / 100)
+                    for i in range(num_add_events):
+                        rand_data_index = np.random.randint(0, len(metadata))
+                        for key in metadata_dct:
+                            metadata_dct[key].append(metadata_dct[key][rand_data_index])
+                    # Convert back to dataframe
+                    metadata = pd.DataFrame(metadata_dct)
+                    metadata.to_csv(path_or_buf=os.path.join(dataset, "metadata.csv"))
+
+                    pbar.update()
 
     return parameters
 
