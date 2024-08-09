@@ -2,6 +2,7 @@ import os
 import shutil
 import subprocess
 import pathlib
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -189,7 +190,17 @@ def check_parameters(parameters: dict) -> dict:
                 # Copy metadata file
                 shutil.copyfile(src=os.path.join(dataset, "metadata.csv"),
                                 dst=os.path.join(dataset, "tmp_metadata.csv"))
-                metadata = pd.read_csv(os.path.join(dataset, "metadata.csv"))
+
+                # Catch warning for mixed dtype
+                warnings.filterwarnings("ignore", category=pd.errors.DtypeWarning)
+                metadata = pd.read_csv(os.path.join(dataset, "metadata.csv"),
+                                       dtype={
+                                           "trace_sampling_rate_hz": float,
+                                           "trace_dt_s": float,
+                                           "trace_component_order": str
+                                       }
+                                       )
+
                 metadata_dct = metadata.to_dict(orient="list")
                 num_add_events = int(len(metadata) * parameters["add_fake_events"] / 100)
                 for i in range(num_add_events):
