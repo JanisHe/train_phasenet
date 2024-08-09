@@ -96,7 +96,7 @@ def main(parfile):
                                selection="first",
                                strategy="variable"),
         sbg.RandomWindow(windowlen=parameters["nsamples"],
-                         strategy="move"),
+                         strategy="pad"),
         sbg.ProbabilisticLabeller(shape=parameters["labeler"],
                                   label_columns=get_phase_dict(), sigma=parameters["sigma"],
                                   dim=0, model_labels=model.labels, noise_column=True)
