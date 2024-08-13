@@ -44,19 +44,6 @@ def main(parfile):
     # Check parameters and modify e.g. metadata
     parameters = check_parameters(parameters=parameters)
 
-    # Read waveform datasets
-    seisbench_dataset = read_datasets(parameters=parameters,
-                                      dataset_key="datasets",
-                                      filter=parameters.get("filter"))
-
-    # Add fake events to metadata
-    if parameters.get("add_fake_events"):
-        add_fake_events_to_metadata(sb_dataset=seisbench_dataset,
-                                    number=int(len(seisbench_dataset) * parameters["add_fake_events"] / 100))
-
-    # Split dataset in train, dev (validation) and test
-    train, validation, test = seisbench_dataset.train_dev_test()
-
     # Load model
     if parameters.get("preload_model"):
         try:
@@ -78,6 +65,20 @@ def main(parfile):
     if torch.cuda.is_available() is True:
         model.cuda()
         print("Running PhaseNet training on GPU.")
+
+    # Read waveform datasets
+    seisbench_dataset = read_datasets(parameters=parameters,
+                                      component_order=model.component_order,
+                                      dataset_key="datasets",
+                                      filter=parameters.get("filter"))
+
+    # Add fake events to metadata
+    if parameters.get("add_fake_events"):
+        add_fake_events_to_metadata(sb_dataset=seisbench_dataset,
+                                    number=int(len(seisbench_dataset) * parameters["add_fake_events"] / 100))
+
+    # Split dataset in train, dev (validation) and test
+    train, validation, test = seisbench_dataset.train_dev_test()
 
     # Define generators for training and validation
     train_generator = sbg.GenericGenerator(train)

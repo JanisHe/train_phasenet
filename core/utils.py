@@ -206,7 +206,10 @@ def filter_dataset(filter: dict, dataset: sbd.WaveformDataset):
     dataset.filter(mask, inplace=True)
 
 
-def read_datasets(parameters: dict, dataset_key: str = "datasets", filter: (dict, None) = None):
+def read_datasets(parameters: dict,
+                  component_order: str = "ZNE",
+                  dataset_key: str = "datasets",
+                  filter: (dict, None) = None,):
     """
     Read seisbench dataset from parameter file.
     """
@@ -214,12 +217,14 @@ def read_datasets(parameters: dict, dataset_key: str = "datasets", filter: (dict
         for dataset_count, dataset in enumerate(lst.values()):
             if dataset_count == 0:
                 sb_dataset = sbd.WaveformDataset(path=pathlib.Path(dataset),
-                                                 sampling_rate=parameters["sampling_rate"])
+                                                 sampling_rate=parameters["sampling_rate"],
+                                                 component_order=component_order)
                 if filter:
                     filter_dataset(filter=filter, dataset=sb_dataset)
             else:
                 subset = sbd.WaveformDataset(path=pathlib.Path(dataset),
-                                             sampling_rate=parameters["sampling_rate"])
+                                             sampling_rate=parameters["sampling_rate"],
+                                             component_order=component_order)
                 if filter:
                     filter_dataset(filter=filter, dataset=subset)
                 sb_dataset += subset
