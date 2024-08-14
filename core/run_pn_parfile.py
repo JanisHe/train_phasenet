@@ -7,6 +7,7 @@ import torch
 import requests
 import tqdm
 
+from mpi4py import MPI
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -17,55 +18,20 @@ import seisbench.models as sbm
 from seisbench.util import worker_seeding
 from torch.utils.data import DataLoader
 import torch.optim as optim
+import torch.utils.data.distributed as datadist
+from torch.utils.hipify.hipify_python import meta_data
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 from pn_utils import get_phase_dict, test_model
 from torch_functions import train_model, VectorCrossEntropyLoss
-from utils import check_parameters, read_datasets, add_fake_events_to_metadata
+from utils import check_parameters, read_datasets, add_fake_events_to_metadata, torch_process_group_init
 
 
-def main(parfile):
-    """
+GPUS_PER_NODE = 4
 
-    """
-    with open(parfile, "r") as file:
-        parameters = yaml.safe_load(file)
 
-    filename = pathlib.Path(parameters["model_name"]).stem
-    parameters["filename"] = filename
-
-    # Make copy of parfile and rename it by filename given in parameters
-    if not os.path.exists("./parfiles"):
-        os.makedirs("./parfiles")
-    try:
-        shutil.copyfile(src=parfile, dst=f"./parfiles/{filename}.yml")
-    except shutil.SameFileError:
-        pass
-
-    # Check parameters and modify e.g. metadata
-    parameters = check_parameters(parameters=parameters)
-
-    # Load model
-    if parameters.get("preload_model"):
-        try:
-            model = sbm.PhaseNet.from_pretrained(parameters["preload_model"])
-        except (ValueError, requests.exceptions.ConnectionError) as e:
-            if os.path.isfile(parameters["preload_model"]) is True:
-                model = torch.load(parameters["preload_model"], map_location=torch.device("cpu"))
-            else:
-                msg = f"{e}\nDid not find {parameters['preload_model']}."
-                raise IOError(msg)
-    else:
-        phases = parameters.get("phases")
-        if not phases:
-            phases = "PSN"
-        model = sbm.PhaseNet(phases=phases, norm="peak")
-    # model = torch.compile(model)  # XXX Attribute error when saving model
-
-    # Move model to GPU if GPU is available
-    if torch.cuda.is_available() is True:
-        model.cuda()
-        print("Running PhaseNet training on GPU.")
-
+def get_data_loaders(comm: MPI.Comm, parameters, model):
     # Read waveform datasets
     seisbench_dataset = read_datasets(parameters=parameters,
                                       component_order=model.component_order,
@@ -124,13 +90,94 @@ def main(parfile):
     train_generator.add_augmentations(augmentations=augmentations)
     val_generator.add_augmentations(augmentations=augmentations)
 
+    if (
+            comm.size > 1
+    ):  # Make the samplers use the torch world to distribute data
+        train_sampler = datadist.DistributedSampler(train_generator,
+                                                    seed=42)
+        val_sampler = datadist.DistributedSampler(val_generator,
+                                                  seed=42)
+    else:
+        train_sampler = None
+        val_sampler = None
+    num_workers = parameters["nworkers"]
+    print(f"Use {num_workers} workers in dataloader.")
+
     # Define generators to load data
-    train_loader = DataLoader(dataset=train_generator, batch_size=parameters["batch_size"],
-                              shuffle=True, num_workers=parameters["nworkers"],
-                              worker_init_fn=worker_seeding)
-    val_loader = DataLoader(dataset=val_generator, batch_size=parameters["batch_size"],
-                            shuffle=False, num_workers=parameters["nworkers"],
-                            worker_init_fn=worker_seeding)
+    train_loader = DataLoader(dataset=train_generator,
+                              batch_size=parameters["batch_size"],
+                              num_workers=parameters["nworkers"],
+                              pin_memory=True,
+                              persistent_workers=True,
+                              shuffle=(train_sampler is None),
+                              sampler=train_sampler)
+
+    val_loader = DataLoader(dataset=val_generator,
+                            batch_size=parameters["batch_size"],
+                            num_workers=parameters["nworkers"],
+                            pin_memory=True,
+                            persistent_workers=True,
+                            shuffle=(val_sampler is None),
+                            sampler=val_sampler)
+
+    return train_loader, val_loader
+
+
+def main(parfile):
+    """
+
+    """
+    comm = MPI.COMM_WORLD
+    torch_process_group_init(comm=comm, method="nccl-slurm")
+
+    with open(parfile, "r") as file:
+        parameters = yaml.safe_load(file)
+
+    filename = pathlib.Path(parameters["model_name"]).stem
+    parameters["filename"] = filename
+
+    # Make copy of parfile and rename it by filename given in parameters
+    if not os.path.exists("./parfiles"):
+        os.makedirs("./parfiles")
+    try:
+        shutil.copyfile(src=parfile, dst=f"./parfiles/{filename}.yml")
+    except shutil.SameFileError:
+        pass
+
+    # Check parameters and modify e.g. metadata
+    parameters = check_parameters(parameters=parameters)
+
+    # Load model
+    if parameters.get("preload_model"):
+        try:
+            model = sbm.PhaseNet.from_pretrained(parameters["preload_model"])
+        except (ValueError, requests.exceptions.ConnectionError) as e:
+            if os.path.isfile(parameters["preload_model"]) is True:
+                model = torch.load(parameters["preload_model"], map_location=torch.device("cpu"))
+            else:
+                msg = f"{e}\nDid not find {parameters['preload_model']}."
+                raise IOError(msg)
+    else:
+        phases = parameters.get("phases")
+        if not phases:
+            phases = "PSN"
+        model = sbm.PhaseNet(phases=phases, norm="peak")
+    # model = torch.compile(model)  # XXX Attribute error when saving model
+
+    train_loader, val_loader = get_data_loaders(comm=comm,
+                                                parameters=parameters,
+                                                model=model)
+
+    # Move model to GPU if GPU is available
+    if torch.cuda.is_available():
+        device = comm.rank % GPUS_PER_NODE
+    else:
+        device = "cpu"
+
+    model = model.to(device)
+
+    if dist.is_initialized() and dist.get_world_size() > 1:
+        model = DDP(model)  # Wrap model with DDP.
 
     # Start training
     # specify loss function
