@@ -136,7 +136,8 @@ def main(parfile):
     parameters["filename"] = filename
 
     # Set number of workers for PyTorch
-    os.sched_setaffinity(0, range(parameters["nworkers"]))
+    # https://github.com/pytorch/pytorch/issues/101850
+    os.sched_setaffinity(0, range(os.cpu_count()))
 
     # Make copy of parfile and rename it by filename given in parameters
     if not os.path.exists("./parfiles"):
@@ -280,7 +281,7 @@ def main(parfile):
 
 if __name__ == "__main__":
     if len(sys.argv) <= 1:
-        parfile = "./pn_parfile.yml"
+        parfile = "../pn_parfile.yml"
     elif len(sys.argv) > 1 and os.path.isfile(sys.argv[1]) is False:
         msg = "The given file {} does not exist. Perhaps take the full path of the file.".format(sys.argv[1])
         raise FileNotFoundError(msg)
