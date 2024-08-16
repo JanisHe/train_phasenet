@@ -90,9 +90,7 @@ def get_data_loaders(comm: MPI.Comm, parameters, model):
     train_generator.add_augmentations(augmentations=augmentations)
     val_generator.add_augmentations(augmentations=augmentations)
 
-    if (
-            comm.size > 1
-    ):  # Make the samplers use the torch world to distribute data
+    if comm.size > 1:  # Make the samplers use the torch world to distribute data
         train_sampler = datadist.DistributedSampler(train_generator,
                                                     seed=42)
         val_sampler = datadist.DistributedSampler(val_generator,
@@ -100,6 +98,7 @@ def get_data_loaders(comm: MPI.Comm, parameters, model):
     else:
         train_sampler = None
         val_sampler = None
+
     num_workers = parameters["nworkers"]
     print(f"Use {num_workers} workers in dataloader.")
 
@@ -120,7 +119,7 @@ def get_data_loaders(comm: MPI.Comm, parameters, model):
                             shuffle=(val_sampler is None),
                             sampler=val_sampler)
 
-    return train_loader, val_loader
+    return train_loader, val_loader, test
 
 
 def main(parfile):
@@ -135,6 +134,9 @@ def main(parfile):
 
     filename = pathlib.Path(parameters["model_name"]).stem
     parameters["filename"] = filename
+
+    # Set number of workers for PyTorch
+    os.sched_setaffinity(0, range(parameters["nworkers"]))
 
     # Make copy of parfile and rename it by filename given in parameters
     if not os.path.exists("./parfiles"):
@@ -164,9 +166,9 @@ def main(parfile):
         model = sbm.PhaseNet(phases=phases, norm="peak")
     # model = torch.compile(model)  # XXX Attribute error when saving model
 
-    train_loader, val_loader = get_data_loaders(comm=comm,
-                                                parameters=parameters,
-                                                model=model)
+    train_loader, val_loader, test = get_data_loaders(comm=comm,
+                                                      parameters=parameters,
+                                                      model=model)
 
     # Move model to GPU if GPU is available
     if torch.cuda.is_available():
@@ -203,7 +205,8 @@ def main(parfile):
     model, train_loss, val_loss = train_model(model=model,
                                               patience=parameters["patience"],
                                               epochs=parameters["epochs"],
-                                              loss_fn=loss_fn, optimizer=optimizer,
+                                              loss_fn=loss_fn,
+                                              optimizer=optimizer,
                                               train_loader=train_loader,
                                               validation_loader=val_loader,
                                               lr_scheduler=scheduler)
@@ -277,8 +280,6 @@ def main(parfile):
 
 if __name__ == "__main__":
     if len(sys.argv) <= 1:
-        # msg = "No parfile is defined!"
-        # raise FileNotFoundError(msg)
         parfile = "./pn_parfile.yml"
     elif len(sys.argv) > 1 and os.path.isfile(sys.argv[1]) is False:
         msg = "The given file {} does not exist. Perhaps take the full path of the file.".format(sys.argv[1])

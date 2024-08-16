@@ -277,12 +277,12 @@ def torch_process_group_init(comm: MPI.Comm, method: str) -> None:
 
     if comm_size == 1:
         return
-    master_address = socket.gethostname()
+    master_address = os.environ["MASTER_ADDR"]
     # Each rank needs to get the hostname of rank 0 of its group.
-    master_address = comm.bcast(str(master_address), root=0)
+    # master_address = comm.bcast(str(master_address), root=0)
 
     # Save environment variables.
-    os.environ["MASTER_ADDR"] = master_address
+    # os.environ["MASTER_ADDR"] = master_address
     # Use the default PyTorch port.
     os.environ["MASTER_PORT"] = str(port)
 
