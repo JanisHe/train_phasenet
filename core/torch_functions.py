@@ -169,7 +169,7 @@ def train_model(model, train_loader, validation_loader, loss_fn,
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
     # Initialize early stopping class
-    early_stopping = EarlyStopping(patience=patience, verbose=False, path_checkpoint=None)
+    # early_stopping = EarlyStopping(patience=patience, verbose=False, path_checkpoint=None)
 
     # Loop over each epoch to start training
     rank = dist.get_rank()
@@ -246,10 +246,10 @@ def train_model(model, train_loader, validation_loader, loss_fn,
 
         # early_stopping needs the validation loss to check if it has decresed,
         # and if it has, it will make a checkpoint of the current model
-        early_stopping(avg_valid_loss[-1], model)
-
-        if early_stopping.early_stop:
-            print("Validation loss does not decrease further. Early stopping")
-            break
+        # early_stopping(avg_valid_loss[-1], model)
+        #
+        # if early_stopping.early_stop:
+        #     print("Validation loss does not decrease further. Early stopping")
+        #     break
 
     return model, avg_train_loss, avg_valid_loss
