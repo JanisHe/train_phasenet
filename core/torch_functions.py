@@ -180,7 +180,9 @@ def train_model(model, train_loader, validation_loader, loss_fn,
         validation_loader.sampler.set_epoch(epoch)
         num_batches = len(train_loader)
         if rank == 0:
-            progress_bar = tqdm(total=num_batches, desc=f"Epoch {epoch + 1}", ncols=100,
+            progress_bar = tqdm(total=num_batches + len(validation_loader),
+                                desc=f"Epoch {epoch + 1}",
+                                ncols=100,
                                 bar_format="{l_bar}{bar} [Elapsed time: {elapsed} {postfix}]")
         else:
             progress_bar = contextlib.nullcontext()
@@ -215,6 +217,10 @@ def train_model(model, train_loader, validation_loader, loss_fn,
                     dist.all_reduce(val_loss)
                     val_loss /= dist.get_world_size()
                     valid_loss.append(val_loss.item())
+
+                    if rank == 0:
+                        pbar.set_postfix({"val_loss": str(np.round(val_loss.item(), 4))})
+                        pbar.update()
 
             # Determine average training and validation loss
             avg_train_loss.append(sum(train_loss) / len(train_loss))
