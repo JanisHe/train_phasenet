@@ -17,7 +17,7 @@ import seisbench.generate as sbg
 import seisbench.models as sbm
 from seisbench.util import worker_seeding
 
-from core.torch_functions import Metrics
+from torch_functions import Metrics
 
 
 def get_phase_dict():
@@ -188,7 +188,7 @@ def pick_residual(true: int, predicted: int) -> (int, np.nan):
         return predicted - true
 
 
-def get_picks(model, dataloader, sigma=30, win_len_factor=10):
+def get_picks(model, dataloader, sigma=30, win_len_factor=10, return_data=False):
     pick_results = {"true_P": np.empty(len(dataloader.dataset)),
                     "true_S": np.empty(len(dataloader.dataset)),
                     "pred_P": np.empty(len(dataloader.dataset)),
@@ -231,6 +231,19 @@ def get_picks(model, dataloader, sigma=30, win_len_factor=10):
                     true=true_p_samp, predicted=pred_p_samp)
                 pick_results["residual_S"][index + (batch_index * dataloader.batch_size)] = pick_residual(
                     true=true_s_samp, predicted=pred_s_samp)
+
+                if return_data is True:
+                    # Allocate memory for data and predictions
+                    if batch_index + index == 0:
+                        pick_results.update({"data": np.empty(shape=(len(dataloader.dataset),
+                                                                     batch["X"].shape[1],
+                                                                     batch["X"].shape[2])),
+                                             "prediction": np.empty(shape=(len(dataloader.dataset),
+                                                                           batch["y"].shape[1],
+                                                                           batch["y"].shape[2]))})
+                    # Write data and predictions
+                    pick_results["data"][index + (batch_index * dataloader.batch_size), :, :] = batch["X"][index]
+                    pick_results["prediction"][index + (batch_index * dataloader.batch_size), :, :] = pred[index]
 
     return pick_results
 
