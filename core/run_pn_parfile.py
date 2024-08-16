@@ -238,45 +238,45 @@ def main(parfile):
         os.makedirs(os.path.join(".", "loss_figures"))
     fig_loss.savefig(os.path.join(".", "loss_figures", f"{filename}.png"))
 
-    # Test model if test data are available
-    if len(test) > 0:
-        # Test model on test data from dataset for different probabilities
-        precision_p, precision_s = [], []
-        recalls_p, recalls_s = [], []
-        f1_p, f1_s = [], []
-        probs = np.linspace(0, 1, 20)
-        with tqdm.tqdm(total=len(probs), desc=f"Testing model", ncols=100,
-                       bar_format="{l_bar}{bar} [Elapsed time: {elapsed} {postfix}]") as pbar:
-            for prob in probs:
-                parameters["true_pick_prob"] = prob
-                metrics_p, metrics_s = test_model(model=model, test_dataset=test, plot_residual_histogram=False,
-                                                  **parameters)
-                precision_p.append(metrics_p.precision)
-                precision_s.append(metrics_s.precision)
-                recalls_p.append(metrics_p.recall)
-                recalls_s.append(metrics_s.recall)
-                f1_p.append(metrics_p.f1_score)
-                f1_s.append(metrics_s.f1_score)
-
-                pbar.update()
-
-        # Plot metrics for P and S in one figure
-        fig_metrics = plt.figure()
-        ax = fig_metrics.add_subplot(111)
-        ax.plot(probs, precision_p, color="blue", linestyle="-", label="Precision P")
-        ax.plot(probs, precision_s, color="blue", linestyle="--", label="Precision S")
-        ax.plot(probs, recalls_p, color="red", linestyle="-", label="Recall P")
-        ax.plot(probs, recalls_s, color="red", linestyle="--", label="Recall S")
-        ax.plot(probs, f1_p, color="black", linestyle="-", label="F1 P")
-        ax.plot(probs, f1_s, color="black", linestyle="--", label="F1 S")
-        ax.set_xlabel("True pick probability")
-        ax.grid(visible=True)
-        ax.legend()
-
-        if os.path.isdir(os.path.join(".", "metrics")) is False:
-            os.makedirs(os.path.join(".", "metrics"))
-
-        fig_metrics.savefig(fname=os.path.join(".", "metrics", f"{filename}.png"))
+    # # Test model if test data are available
+    # if len(test) > 0:
+    #     # Test model on test data from dataset for different probabilities
+    #     precision_p, precision_s = [], []
+    #     recalls_p, recalls_s = [], []
+    #     f1_p, f1_s = [], []
+    #     probs = np.linspace(0, 1, 20)
+    #     with tqdm.tqdm(total=len(probs), desc=f"Testing model", ncols=100,
+    #                    bar_format="{l_bar}{bar} [Elapsed time: {elapsed} {postfix}]") as pbar:
+    #         for prob in probs:
+    #             parameters["true_pick_prob"] = prob
+    #             metrics_p, metrics_s = test_model(model=model, test_dataset=test, plot_residual_histogram=False,
+    #                                               **parameters)
+    #             precision_p.append(metrics_p.precision)
+    #             precision_s.append(metrics_s.precision)
+    #             recalls_p.append(metrics_p.recall)
+    #             recalls_s.append(metrics_s.recall)
+    #             f1_p.append(metrics_p.f1_score)
+    #             f1_s.append(metrics_s.f1_score)
+    #
+    #             pbar.update()
+    #
+    #     # Plot metrics for P and S in one figure
+    #     fig_metrics = plt.figure()
+    #     ax = fig_metrics.add_subplot(111)
+    #     ax.plot(probs, precision_p, color="blue", linestyle="-", label="Precision P")
+    #     ax.plot(probs, precision_s, color="blue", linestyle="--", label="Precision S")
+    #     ax.plot(probs, recalls_p, color="red", linestyle="-", label="Recall P")
+    #     ax.plot(probs, recalls_s, color="red", linestyle="--", label="Recall S")
+    #     ax.plot(probs, f1_p, color="black", linestyle="-", label="F1 P")
+    #     ax.plot(probs, f1_s, color="black", linestyle="--", label="F1 S")
+    #     ax.set_xlabel("True pick probability")
+    #     ax.grid(visible=True)
+    #     ax.legend()
+    #
+    #     if os.path.isdir(os.path.join(".", "metrics")) is False:
+    #         os.makedirs(os.path.join(".", "metrics"))
+    #
+    #     fig_metrics.savefig(fname=os.path.join(".", "metrics", f"{filename}.png"))
 
 
 if __name__ == "__main__":
