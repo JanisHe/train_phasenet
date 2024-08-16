@@ -3,7 +3,7 @@ from tqdm.auto import tqdm
 import torch
 import contextlib
 
-from core.utils import is_nan
+from utils import is_nan
 import torch.distributed as dist
 
 
