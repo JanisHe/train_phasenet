@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     pop_size = 2 * comm.size  # Breeding population size
     limits_dict = {"learning_rate": (0.0001, 0.01),
-                   "batch_size": (128, 256, 512, 1024, 2048, 4096, 8192)}
+                   "batch_size": (512, 1024)}
     rng = random.Random(
         comm.rank
     )  # Set up separate random number generator for evolutionary optimizer.
