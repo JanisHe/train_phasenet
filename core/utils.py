@@ -23,8 +23,9 @@ from mpi4py import MPI
 import torch.distributed as dist
 from run_pn_parfile import get_data_loaders
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torch_functions import VectorCrossEntropyLoss, train_model
 import torch.optim as optim
+
+from torch_functions import VectorCrossEntropyLoss, train_model
 
 
 log = logging.getLogger("propulate")  # Get logger instance.

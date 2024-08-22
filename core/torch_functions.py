@@ -3,7 +3,6 @@ from tqdm.auto import tqdm
 import torch
 import contextlib
 
-from utils import is_nan
 import torch.distributed as dist
 
 
@@ -151,6 +150,10 @@ class MeanSquaredError:
         mse = mse.mean()
 
         return mse
+
+
+def is_nan(num):
+    return num != num
 
 
 def train_model(model, train_loader, validation_loader, loss_fn,
