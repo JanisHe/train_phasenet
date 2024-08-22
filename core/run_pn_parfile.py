@@ -177,7 +177,10 @@ def main(parfile):
     else:
         device = "cpu"
 
-    model = model.to(device)
+    # Auf Juwels muss als device "cuda" benutzt werden
+    model = model.to("cuda")
+    # Au Haicore werden alle gesehen, deswegen wird evice gewaehlt
+    # model = model.to(device)
 
     if dist.is_initialized() and dist.get_world_size() > 1:
         model = DDP(model)  # Wrap model with DDP.
