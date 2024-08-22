@@ -23,9 +23,8 @@ from torch.utils.hipify.hipify_python import meta_data
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-from torch_functions import train_model, VectorCrossEntropyLoss
 from utils import (check_parameters, read_datasets, add_fake_events_to_metadata, torch_process_group_init,
-                   get_phase_dict, test_model)
+                   get_phase_dict, test_model, train_model, VectorCrossEntropyLoss)
 
 
 GPUS_PER_NODE = 4
