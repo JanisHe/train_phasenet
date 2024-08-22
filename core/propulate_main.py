@@ -1,23 +1,11 @@
-import datetime as dt
 import logging
-import os
 import pathlib
 import random
-import socket
-import time
-from typing import Dict, Tuple, Union
 
-import torch
-import torch.distributed as dist
-import torch.utils.data.distributed as datadist
 from mpi4py import MPI
-from torch import nn, optim
-from torch.nn.parallel import DistributedDataParallel as DDP  # noqa: N817
-from torch.utils.data import DataLoader
 
 from propulate import Islands
 from propulate.utils import get_default_propagator, set_logger_config
-from propulate.utils.benchmark_functions import parse_arguments
 from utils import ind_loss
 
 

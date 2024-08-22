@@ -24,101 +24,10 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 from utils import (check_parameters, read_datasets, add_fake_events_to_metadata, torch_process_group_init,
-                   get_phase_dict, test_model, train_model, VectorCrossEntropyLoss)
+                   get_phase_dict, test_model, train_model, VectorCrossEntropyLoss, get_data_loaders)
 
 
 GPUS_PER_NODE = 4
-
-
-def get_data_loaders(comm: MPI.Comm, parameters, model):
-    # Read waveform datasets
-    seisbench_dataset = read_datasets(parameters=parameters,
-                                      component_order=model.component_order,
-                                      dataset_key="datasets",
-                                      filter=parameters.get("filter"))
-
-    # Add fake events to metadata
-    if parameters.get("add_fake_events"):
-        add_fake_events_to_metadata(sb_dataset=seisbench_dataset,
-                                    number=int(len(seisbench_dataset) * parameters["add_fake_events"] / 100))
-
-    # Split dataset in train, dev (validation) and test
-    train, validation, test = seisbench_dataset.train_dev_test()
-
-    # Define generators for training and validation
-    train_generator = sbg.GenericGenerator(train)
-    val_generator = sbg.GenericGenerator(validation)
-
-    # Build augmentations and labels
-    # Ensure that all phases are in requested window
-    augmentations = [
-        sbg.WindowAroundSample(list(get_phase_dict().keys()),
-                               samples_before=int(0.8 * parameters["nsamples"]),
-                               windowlen=int(1.5 * parameters["nsamples"]),
-                               selection="first",
-                               strategy="variable"),
-        sbg.RandomWindow(windowlen=parameters["nsamples"],
-                         strategy="pad"),
-        sbg.ProbabilisticLabeller(shape=parameters["labeler"],
-                                  label_columns=get_phase_dict(), sigma=parameters["sigma"],
-                                  dim=0, model_labels=model.labels, noise_column=True)
-    ]
-
-    if parameters.get("rotate") is True:
-        augmentations.append(sbg.RotateHorizontalComponents())
-
-    # Add RealNoise to augmentations if noise_datasets are in parmeters
-    if parameters.get("noise_datasets"):
-        noise_dataset = read_datasets(parameters=parameters, dataset_key="noise_datasets")
-        # TODO: trace_Z_snr is hard coded
-        augmentations.append(
-            sbg.OneOf(
-                augmentations=[sbg.RealNoise(
-                    noise_dataset=noise_dataset,
-                    metadata_thresholds={"trace_Z_snr_db": 10}
-                )],
-                probabilities=[0.5]
-            )
-        )
-
-    # Change dtype of data (necessary for PyTorch and the last augmentation step)
-    augmentations.append(sbg.Normalize(demean_axis=-1, amp_norm_axis=-1, amp_norm_type=model.norm))
-    augmentations.append(sbg.ChangeDtype(np.float32))
-
-    # Add augmentations to generators
-    train_generator.add_augmentations(augmentations=augmentations)
-    val_generator.add_augmentations(augmentations=augmentations)
-
-    if comm.size > 1:  # Make the samplers use the torch world to distribute data
-        train_sampler = datadist.DistributedSampler(train_generator,
-                                                    seed=42)
-        val_sampler = datadist.DistributedSampler(val_generator,
-                                                  seed=42)
-    else:
-        train_sampler = None
-        val_sampler = None
-
-    num_workers = parameters["nworkers"]
-    print(f"Use {num_workers} workers in dataloader.")
-
-    # Define generators to load data
-    train_loader = DataLoader(dataset=train_generator,
-                              batch_size=parameters["batch_size"],
-                              num_workers=parameters["nworkers"],
-                              pin_memory=True,
-                              persistent_workers=True,
-                              shuffle=(train_sampler is None),
-                              sampler=train_sampler)
-
-    val_loader = DataLoader(dataset=val_generator,
-                            batch_size=parameters["batch_size"],
-                            num_workers=parameters["nworkers"],
-                            pin_memory=True,
-                            persistent_workers=True,
-                            shuffle=(val_sampler is None),
-                            sampler=val_sampler)
-
-    return train_loader, val_loader, test
 
 
 def main(parfile):
