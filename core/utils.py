@@ -1172,16 +1172,18 @@ def train_model(model, train_loader, validation_loader, loss_fn,
     # Loop over each epoch to start training
     rank = dist.get_rank()
     for epoch in range(epochs):
+        print(f"Start epoch {epoch + 1} for rank {rank}")
         # Train model (loop over each batch; batch_size is defined in DataLoader)
         # TODO (idea): test model with validation (compute metrics)
         train_loader.sampler.set_epoch(epoch)
         validation_loader.sampler.set_epoch(epoch)
         num_batches = len(train_loader)
         if rank == 0:
-            progress_bar = tqdm(total=num_batches + len(validation_loader),
-                                desc=f"Epoch {epoch + 1}",
-                                ncols=100,
-                                bar_format="{l_bar}{bar} [Elapsed time: {elapsed} {postfix}]")
+            # progress_bar = tqdm(total=num_batches + len(validation_loader),
+            #                     desc=f"Epoch {epoch + 1}",
+            #                     ncols=100,
+            #                     bar_format="{l_bar}{bar} [Elapsed time: {elapsed} {postfix}]")
+            progress_bar = contextlib.nullcontext()
         else:
             progress_bar = contextlib.nullcontext()
 
@@ -1201,12 +1203,13 @@ def train_model(model, train_loader, validation_loader, loss_fn,
                 loss /= dist.get_world_size()
                 train_loss.append(loss.item())
 
-                # Update progressbar
-                if rank == 0:
-                    pbar.set_postfix({"loss": str(np.round(loss.item(), 4))})
-                    pbar.update()
+                # # Update progressbar
+                # if rank == 0:
+                #     pbar.set_postfix({"loss": str(np.round(loss.item(), 4))})
+                #     pbar.update()
 
             # Validate the model
+            print(f"Validate epoch {epoch + 1} for rank {rank}")
             model.eval()     # Close the model for validation / evaluation
             with torch.no_grad():   # Disable gradient calculation
                 for batch in validation_loader:
@@ -1216,20 +1219,20 @@ def train_model(model, train_loader, validation_loader, loss_fn,
                     val_loss /= dist.get_world_size()
                     valid_loss.append(val_loss.item())
 
-                    if rank == 0:
-                        pbar.set_postfix({"val_loss": str(np.round(val_loss.item(), 4))})
-                        pbar.update()
+                    # if rank == 0:
+                    #     pbar.set_postfix({"val_loss": str(np.round(val_loss.item(), 4))})
+                    #     pbar.update()
 
             # Determine average training and validation loss
             avg_train_loss.append(sum(train_loss) / len(train_loss))
             avg_valid_loss.append(sum(valid_loss) / len(valid_loss))
 
-            # Update progressbar
-            if rank == 0:
-                pbar.set_postfix(
-                    {"loss": str(np.round(avg_train_loss[-1], 4)),
-                     "val_loss": str(np.round(avg_valid_loss[-1], 4))}
-                )
+            # # Update progressbar
+            # if rank == 0:
+            #     pbar.set_postfix(
+            #         {"loss": str(np.round(avg_train_loss[-1], 4)),
+            #          "val_loss": str(np.round(avg_valid_loss[-1], 4))}
+            #     )
 
         # Re-open model for next epoch
         model.train()
