@@ -718,24 +718,8 @@ def torch_process_group_init(comm: MPI.Comm, method: str) -> None:
     # # Save environment variables.
     # # os.environ["MASTER_ADDR"] = master_address
     # # Use the default PyTorch port.
-    os.environ["MASTER_PORT"] = str(port)
-
-    # NEW
-    # Get master address and port.
-    # Don't want different groups to use the same port.
-    # subgroup_id = MPI.COMM_WORLD.rank // comm_size
-    # port = 29500 + subgroup_id
-
-    # if comm_size == 1:
-    #     return
-    # master_address = socket.gethostname()
-    # # Each multi-rank worker rank needs to get the hostname of rank 0 of its subgroup.
-    # master_address = comm.bcast(str(master_address), root=0)
-    #
-    # # Save environment variables.
-    # os.environ["MASTER_ADDR"] = master_address
-    # # Use the default PyTorch port.
     # os.environ["MASTER_PORT"] = str(port)
+
 
     if not torch.cuda.is_available():
         method = "gloo"
