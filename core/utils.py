@@ -717,8 +717,8 @@ def torch_process_group_init(comm: MPI.Comm, method: str) -> None:
     #
     # # Save environment variables.
     # # os.environ["MASTER_ADDR"] = master_address
-    # # Use the default PyTorch port.
-    # os.environ["MASTER_PORT"] = str(port)
+    # Use the default PyTorch port.
+    os.environ["MASTER_PORT"] = str(port)
 
 
     if not torch.cuda.is_available():
