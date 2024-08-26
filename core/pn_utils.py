@@ -20,7 +20,7 @@ from seisbench.util import worker_seeding
 from core.torch_functions import Metrics
 
 
-def get_phase_dict():
+def get_phase_dict(num_phases=25):
     map_phases = {
         "trace_p_arrival_sample": "P",
         "trace_pP_arrival_sample": "P",
@@ -42,6 +42,10 @@ def get_phase_dict():
         "trace_Sn_arrival_sample": "S",
         "trace_ASg_arrival_sample": "S",
     }
+
+    for i in range(num_phases):
+        for phase in ["P", "S"]:
+            map_phases.update({f"trace_{phase}_{i}_arrival_sample": phase})
 
     return map_phases
 
