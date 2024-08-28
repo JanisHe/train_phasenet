@@ -187,7 +187,8 @@ def check_parameters(parameters: dict) -> dict:
     return parameters
 
 
-def filter_dataset(filter: dict, dataset: sbd.WaveformDataset):
+def filter_dataset(filter: dict,
+                   dataset: sbd.WaveformDataset):
     """
     Filtering metadata of seisbench dataset. Since filtering is inplace, nothing is returned.
     keywords of filter:
@@ -195,15 +196,18 @@ def filter_dataset(filter: dict, dataset: sbd.WaveformDataset):
     - item: which column in metadata
     - threshold: value for threshold
     """
-    if filter["operation"] == "<":
-        mask = dataset.metadata[filter["item"]] < filter["threshold"]
-    elif filter["operation"] == ">":
-        mask = dataset.metadata[filter["item"]] > filter["threshold"]
-    else:
-        msg = f'Filter operation {filter["operation"]} is not known'
-        raise ValueError(msg)
+    try:
+        if filter["operation"] == "<":
+            mask = dataset.metadata[filter["item"]] < filter["threshold"]
+        elif filter["operation"] == ">":
+            mask = dataset.metadata[filter["item"]] > filter["threshold"]
+        else:
+            msg = f'Filter operation {filter["operation"]} is not known'
+            raise ValueError(msg)
 
-    dataset.filter(mask, inplace=True)
+        dataset.filter(mask, inplace=True)
+    except KeyError:
+        print(f"No filtering for data set {dataset} possible.")
 
 
 def read_datasets(parameters: dict,
