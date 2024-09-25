@@ -79,6 +79,7 @@ def main(parfile):
 
     # Split dataset in train, dev (validation) and test
     train, validation, test = seisbench_dataset.train_dev_test()
+    print(f"Size of dataset: {len(train)} | {len(validation)} | {len(test)} (train | val | test)")
 
     # Define generators for training and validation
     train_generator = sbg.GenericGenerator(train)
