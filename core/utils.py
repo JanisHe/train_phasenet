@@ -1,15 +1,12 @@
 import os
-import shutil
 import subprocess
 import pathlib
-import warnings
 
 import numpy as np
 import pandas as pd
 import obspy
 
-import seisbench.data as sbd
-from tqdm import tqdm
+import seisbench.data as sbd # noqa
 
 
 def rms(x):

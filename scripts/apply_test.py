@@ -5,10 +5,10 @@ import numpy as np
 import torch
 import yaml
 from torch.utils.data import DataLoader
-import seisbench.models as sbm
-import seisbench.generate as sbg
-import seisbench.data as sbd
-from seisbench.util import worker_seeding
+import seisbench.models as sbm  # noqa
+import seisbench.generate as sbg # noqa
+import seisbench.data as sbd  # noqa
+from seisbench.util import worker_seeding # noqa
 import matplotlib.pyplot as plt
 from typing import Union
 

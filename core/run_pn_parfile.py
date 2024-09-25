@@ -7,14 +7,11 @@ import torch
 import requests
 import tqdm
 
-from pathlib import Path
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
-import seisbench.data as sbd
-import seisbench.generate as sbg
-import seisbench.models as sbm
-from seisbench.util import worker_seeding
+import seisbench.generate as sbg # noqa
+import seisbench.models as sbm # noqa
+from seisbench.util import worker_seeding # noqa
 from torch.utils.data import DataLoader
 import torch.optim as optim
 

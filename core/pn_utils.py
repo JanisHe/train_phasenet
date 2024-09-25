@@ -12,10 +12,8 @@ import pandas as pd
 from typing import Union
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
-import seisbench.data as sbd
-import seisbench.generate as sbg
-import seisbench.models as sbm
-from seisbench.util import worker_seeding
+import seisbench.generate as sbg # noqa
+from seisbench.util import worker_seeding # noqa
 
 from core.torch_functions import Metrics
 
