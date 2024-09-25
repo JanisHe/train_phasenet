@@ -1,5 +1,6 @@
 import os
 import pathlib
+import tqdm
 
 import numpy as np
 import torch
@@ -162,25 +163,29 @@ def probabilities(parfile,
     f1_p, f1_s = [], []
     tp_p, fp_p, fn_p = [], [], []
     tp_s, fp_s, fn_s = [], [], []
-    for prob in probs:
-        parameters["true_pick_prob"] = prob
-        metrics_p, metrics_s = test_model(model=model,
-                                          test_dataset=test,
-                                          plot_residual_histogram=False,
-                                          **parameters)
-        precisions_p.append(metrics_p.precision)
-        precisions_s.append(metrics_s.precision)
-        recalls_p.append(metrics_p.recall)
-        recalls_s.append(metrics_s.recall)
-        f1_p.append(metrics_p.f1_score)
-        f1_s.append(metrics_s.f1_score)
+    with tqdm.tqdm(total=len(probs), desc=f"Testing model", ncols=100,
+                   bar_format="{l_bar}{bar} [Elapsed time: {elapsed} {postfix}]") as pbar:
+        for prob in probs:
+            parameters["true_pick_prob"] = prob
+            metrics_p, metrics_s = test_model(model=model,
+                                              test_dataset=test,
+                                              plot_residual_histogram=False,
+                                              **parameters)
+            precisions_p.append(metrics_p.precision)
+            precisions_s.append(metrics_s.precision)
+            recalls_p.append(metrics_p.recall)
+            recalls_s.append(metrics_s.recall)
+            f1_p.append(metrics_p.f1_score)
+            f1_s.append(metrics_s.f1_score)
 
-        tp_p.append(metrics_p.true_positive)
-        fp_p.append(metrics_p.false_positive)
-        fn_p.append(metrics_p.false_negative)
-        tp_s.append(metrics_s.true_positive)
-        fp_s.append(metrics_s.false_positive)
-        fn_s.append(metrics_s.false_negative)
+            tp_p.append(metrics_p.true_positive)
+            fp_p.append(metrics_p.false_positive)
+            fn_p.append(metrics_p.false_negative)
+            tp_s.append(metrics_s.true_positive)
+            fp_s.append(metrics_s.false_positive)
+            fn_s.append(metrics_s.false_negative)
+
+            pbar.update()
 
     # Plot
     fig = plt.figure()
@@ -275,7 +280,7 @@ def compare_models(models: dict, datasets: list, colors: Union[list, None] = Non
 
 
 if __name__ == "__main__":
-    # parfile = "/home/jheuel/code/train_phasenet/test_model.yml"
+    parfile = "/home/jheuel/code/train_phasenet/test_model.yml"
     # main(parfile)
     # probabilities(parfile)
     # misclassified_data(parfile)
@@ -294,7 +299,6 @@ if __name__ == "__main__":
     #                   probs=np.linspace(0, 1, 20),
     #                   model_path="/home/jheuel/code/train_phasenet/models/final_models")
 
-    parfile = "../pn_parfile.yml"
     probabilities(parfile=parfile,
-                  probs=None,
-                  model_path="/home/jheuel/code/train_phasenet/models")
+                  probs=np.linspace(0, 1, 20),
+                  model_path=None)

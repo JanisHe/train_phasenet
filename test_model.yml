@@ -3,10 +3,17 @@ sampling_rate: 100
 labeler: gaussian
 sigma: 10                # Muss mit Modell übereinstimmen!
 datasets:
-  - stead: /home/jheuel/scratch/ai_datasets/stead
-batch_size: 512
-nworkers: 4
-model: /home/jheuel/code/train_phasenet/models/stead4096_lr0_01.pth
+  - set1: /home/jheuel/scratch/ai_datasets/ps_filtered/dawson_creek
+#    set2: /home/jheuel/scratch/ai_datasets/ps_filtered/eifel
+#    set3: /home/jheuel/scratch/ai_datasets/ps_filtered/ethz_induced
+#    set4: /home/jheuel/scratch/ai_datasets/ps_filtered/ethz_maxmag2
+#    set5: /home/jheuel/scratch/ai_datasets/ps_filtered/floodrisk
+#    set6: /home/jheuel/scratch/ai_datasets/ps_filtered/insheim
+#    set7: /home/jheuel/scratch/ai_datasets/ps_filtered/rittershoffen_full
+#    set8: /home/jheuel/scratch/ai_datasets/ps_filtered/soultz
+#    set9: /home/jheuel/scratch/ai_datasets/ps_filtered/vendenheim
+nworkers: 8
+model: /home/jheuel/code/train_phasenet/models/original_ft_all_data.pth
 # preload_model: stead
 win_len_factor: 10
 true_pick_prob: 0.2
