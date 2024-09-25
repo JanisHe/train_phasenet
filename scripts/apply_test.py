@@ -1,7 +1,5 @@
 import os
-import glob
 import pathlib
-import random
 
 import numpy as np
 import torch
@@ -120,7 +118,8 @@ def misclassified_data(parfile, probability=None):
                 plt.show()
 
 
-def probabilities(parfile, probs: Union[np.array, None] = None,
+def probabilities(parfile,
+                  probs: Union[np.array, None] = None,
                   model_path: str = None):
     """
     Compute precision and recall for different probabilities
@@ -147,14 +146,15 @@ def probabilities(parfile, probs: Union[np.array, None] = None,
                            map_location=torch.device("cpu"))
 
     # Read datasets
-    seisbench_dataset = read_datasets(parameters=parameters, dataset_key="datasets")
+    seisbench_dataset = read_datasets(parameters=parameters,
+                                      dataset_key="datasets")
 
     # Split dataset in train, dev (validation) and test
     train, validation, test = seisbench_dataset.train_dev_test()
 
     # Test model on test data from dataset
     # Loop over true_pick_probabilities
-    if not probs:
+    if isinstance(probs, np.ndarray) is False:
         probs = np.linspace(0.05, 0.8, num=5)
 
     precisions_p, precisions_s = [],  []
@@ -288,8 +288,13 @@ if __name__ == "__main__":
     # compare_models(models=models_dct,
     #                datasets=glob.glob("/home/jheuel/scratch/ai_datasets/ps_filtered/*"))
 
-    parfiles = glob.glob("/home/jheuel/code/train_phasenet/models/final_models/*.yml")
-    for parfile in parfiles:
-        probabilities(parfile=parfile,
-                      probs=np.linspace(0, 1, 20),
-                      model_path="/home/jheuel/code/train_phasenet/models/final_models")
+    # parfiles = glob.glob("/home/jheuel/code/train_phasenet/models/final_models/*.yml")
+    # for parfile in parfiles:
+    #     probabilities(parfile=parfile,
+    #                   probs=np.linspace(0, 1, 20),
+    #                   model_path="/home/jheuel/code/train_phasenet/models/final_models")
+
+    parfile = "../pn_parfile.yml"
+    probabilities(parfile=parfile,
+                  probs=None,
+                  model_path="/home/jheuel/code/train_phasenet/models")
