@@ -275,7 +275,7 @@ def test_model(model: seisbench.models.phasenet.PhaseNet,
                                   model_labels=model.labels, noise_column=True)
     ]
     test_generator.add_augmentations(augmentations)
-    test_loader = DataLoader(dataset=test_generator, batch_size=parameters["batch_size"],
+    test_loader = DataLoader(dataset=test_generator, batch_size=128,
                              shuffle=False, num_workers=parameters["nworkers"],
                              worker_init_fn=worker_seeding, drop_last=False)
 
