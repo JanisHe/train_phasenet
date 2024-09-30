@@ -133,13 +133,14 @@ def probabilities(parfile,
     # Load model
     if not model_path:
         if parameters.get("model"):
-            parameters["filename"] = pathlib.Path(parameters["model"]).stem
-            model = torch.load(parameters.pop("model"), map_location=torch.device("cpu"))
-        elif parameters.get("preload_model"):
-            model = sbm.PhaseNet.from_pretrained(parameters["preload_model"])
-            parameters["filename"] = parameters["preload_model"]
+            if os.path.isfile(parameters["model"]) is True:
+                parameters["filename"] = pathlib.Path(parameters["model"]).stem
+                model = torch.load(parameters.pop("model"), map_location=torch.device("cpu"))
+            else:
+                parameters["filename"] = parameters["model"]
+                model = sbm.PhaseNet.from_pretrained(parameters.pop("model"))
         else:
-            msg = "Whether model nor preload_model is defined in parfile."
+            msg = "No model is defined."
             raise ValueError(msg)
     else:
         parameters["filename"] = pathlib.Path(parameters["model_name"]).stem
@@ -188,8 +189,17 @@ def probabilities(parfile,
             pbar.update()
 
     # Plot
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
+    fig= plt.figure(figsize=(11, 5))
+    ax_pr = fig.add_subplot(121)
+    ax_pr.plot(recalls_p, precisions_p, label="P")
+    ax_pr.plot(recalls_s, precisions_s, label="S")
+    ax_pr.legend()
+    ax_pr.grid(visible=True)
+    ax_pr.set_xlabel("Recall")
+    ax_pr.set_ylabel("Precision")
+    ax_pr.set_xlim(0, 1)
+
+    ax = fig.add_subplot(122)
     ax.plot(probs, precisions_p, color="blue", linestyle="-", label="Precision P")
     ax.plot(probs, precisions_s, color="blue", linestyle="--", label="Precision S")
     ax.plot(probs, recalls_p, color="red", linestyle="-", label="Recall P")
@@ -197,11 +207,13 @@ def probabilities(parfile,
     ax.plot(probs, f1_p, color="black", linestyle="-", label="F1 P")
     ax.plot(probs, f1_s, color="black", linestyle="--", label="F1 S")
     ax.set_ylim(0.25, 1.05)
+    ax.set_xlim(0, 1)
     ax.set_xlabel("True pick probability")
     ax.set_ylabel("Precision / Recall")
     ax.legend()
     ax.grid(visible=True)
 
+    plt.tight_layout()
     plt.savefig(f"./metrics/probabilities_{parameters['filename']}.svg")
 
 
@@ -300,5 +312,5 @@ if __name__ == "__main__":
     #                   model_path="/home/jheuel/code/train_phasenet/models/final_models")
 
     probabilities(parfile=parfile,
-                  probs=np.linspace(0, 1, 20),
+                  probs=np.linspace(0.0, 1, 40),
                   model_path=None)
