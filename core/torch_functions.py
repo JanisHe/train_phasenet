@@ -100,15 +100,15 @@ class Metrics:
 
     @property
     def precision(self, eps=1e-6) -> float:
-        return self.true_positive / (self.true_positive + self.false_positive + eps)
+        return (self.true_positive + eps) / (self.true_positive + self.false_positive + eps)
 
     @property
     def recall(self, eps=1e-6) -> float:
-        return self.true_positive / (self.true_positive + self.false_negative + eps)
+        return (self.true_positive + eps) / (self.true_positive + self.false_negative + eps)
 
     @property
     def f1_score(self, eps=1e-6) -> float:
-        return 2 * ((self.precision * self.recall) / (
+        return 2 * ((self.precision * self.recall + eps) / (
                     self.precision + self.recall + eps))
 
 
