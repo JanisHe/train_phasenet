@@ -347,15 +347,13 @@ def test_model(model: seisbench.models.phasenet.PhaseNet,
                         residuals=picks_and_probs["residual_P"],
                         true_pick_prob=parameters["true_pick_prob"],
                         arrival_residual=parameters["arrival_residual"],
-                        predictions=picks_and_probs["pred_P"],
-                        prediction_array=picks_and_probs["array_P"])
+                        predictions=picks_and_probs["pred_P"])
 
     metrics_s = Metrics(probabilities=picks_and_probs["prob_S"],
                         residuals=picks_and_probs["residual_S"],
                         true_pick_prob=parameters["true_pick_prob"],
                         arrival_residual=parameters["arrival_residual"],
-                        predictions=picks_and_probs["pred_S"],
-                        prediction_array=picks_and_probs["array_S"])
+                        predictions=picks_and_probs["pred_S"])
 
     # 2. Plot time arrival residuals for P and S
     if plot_residual_histogram is True:

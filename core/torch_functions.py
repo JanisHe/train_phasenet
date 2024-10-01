@@ -73,7 +73,6 @@ class Metrics:
                  probabilities: np.ndarray,
                  residuals: np.ndarray,
                  predictions: Union[None, np.ndarray]=None,
-                 prediction_array: Union[None, np.ndarray]=None,
                  true_pick_prob: float=0.5,
                  arrival_residual: int=10):
 
@@ -82,7 +81,6 @@ class Metrics:
         self.true_pick_prob = true_pick_prob
         self.arrival_residual = arrival_residual
         self.predictions = predictions
-        self.prediction_array = prediction_array
 
         self.true_positive = None
         self.false_positive = None
