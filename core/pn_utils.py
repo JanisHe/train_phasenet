@@ -4,7 +4,7 @@ Collection of functions to train and test PhaseNet
 import os
 import torch
 import pathlib
-import seisbench
+import seisbench  # noqa
 
 import numpy as np
 import pandas as pd
@@ -124,16 +124,20 @@ def map_arrivals(dataframe: pd.DataFrame,
     return dataframe
 
 
-def get_sb_phase_value(phase: str, phasennet_model: seisbench.models.phasenet.PhaseNet) -> int:
+def get_sb_phase_value(phase: str,
+                       phasennet_model: seisbench.models.phasenet.PhaseNet) -> int:
     try:
         return phasennet_model.labels.index(phase)
     except ValueError:
         ValueError(f"Phase {phase} is not in model labels ({phasennet_model.labels}).")
 
 
-def get_true_pick(batch: dict, index: int, phasenet_model: seisbench.models.phasenet.PhaseNet,
+def get_true_pick(batch: dict,
+                  index: int,
+                  phasenet_model: seisbench.models.phasenet.PhaseNet,
                   phase: str = "P") -> Union[str, None]:
-    phase_index = get_sb_phase_value(phase=phase, phasennet_model=phasenet_model)
+    phase_index = get_sb_phase_value(phase=phase,
+                                     phasennet_model=phasenet_model)
     true_pick_index = np.argmax(batch["y"][index, phase_index, :].detach().numpy())
 
     if true_pick_index == 0:
@@ -142,15 +146,20 @@ def get_true_pick(batch: dict, index: int, phasenet_model: seisbench.models.phas
         return true_pick_index
 
 
-def get_predicted_pick(prediction: torch.Tensor, index: int, true_pick: (int, None),
+def get_predicted_pick(prediction: torch.Tensor,
+                       index: int,
+                       true_pick: (int, None),
                        phasenet_model: seisbench.models.phasenet.PhaseNet,
-                       sigma=30, phase: str = "P", win_len_factor=10) -> Union[int, None]:
+                       sigma=30,
+                       phase: str = "P",
+                       win_len_factor=10) -> Union[int, None]:
     # Return None if true_pick is None
     if not true_pick:
         return None
 
     # Get phase index
-    phase_index = get_sb_phase_value(phase=phase, phasennet_model=phasenet_model)
+    phase_index = get_sb_phase_value(phase=phase,
+                                     phasennet_model=phasenet_model)
 
     # If GPU is used, convert prediction from cuda to numpy
     prediction = prediction.cpu()
@@ -165,7 +174,7 @@ def get_predicted_pick(prediction: torch.Tensor, index: int, true_pick: (int, No
     pred_pick_index = np.argmax(prediction[index, phase_index, lower_bound:upper_bound].detach().numpy())
 
     # Add offset to pred_pick_index
-    pred_pick_index += true_pick - int(win_len_factor * sigma)
+    pred_pick_index += lower_bound
 
     if pred_pick_index == 0:
         return None
@@ -173,8 +182,11 @@ def get_predicted_pick(prediction: torch.Tensor, index: int, true_pick: (int, No
         return pred_pick_index
 
 
-def get_pick_probabilities(prediction_sample: (int, None), prediction: torch.Tensor, index: int,
-                           phasenet_model: seisbench.models.phasenet.PhaseNet, phase: str = "P") -> Union[float, None]:
+def get_pick_probabilities(prediction_sample: (int, None),
+                           prediction: torch.Tensor,
+                           index: int,
+                           phasenet_model: seisbench.models.phasenet.PhaseNet,
+                           phase: str = "P") -> Union[float, None]:
 
     phase_index = get_sb_phase_value(phase=phase, phasennet_model=phasenet_model)
     if prediction_sample:
@@ -183,14 +195,18 @@ def get_pick_probabilities(prediction_sample: (int, None), prediction: torch.Ten
         return None
 
 
-def pick_residual(true: int, predicted: int) -> (int, np.nan):
+def pick_residual(true: int,
+                  predicted: int) -> (int, np.nan):
     if not true or not predicted:
         return np.nan
     else:
         return predicted - true
 
 
-def get_picks(model, dataloader, sigma=30, win_len_factor=10):
+def get_picks(model,
+              dataloader,
+              sigma=30,
+              win_len_factor=10):
     pick_results = {"true_P": np.empty(len(dataloader.dataset)),
                     "true_S": np.empty(len(dataloader.dataset)),
                     "pred_P": np.empty(len(dataloader.dataset)),
@@ -205,22 +221,42 @@ def get_picks(model, dataloader, sigma=30, win_len_factor=10):
             pred = model(batch["X"].to(model.device))
             for index in range(pred.shape[0]):
                 # Find true P and S phase arrival
-                true_p_samp = get_true_pick(batch=batch, index=index, phase="P", phasenet_model=model)
-                true_s_samp = get_true_pick(batch=batch, index=index, phase="S", phasenet_model=model)
+                true_p_samp = get_true_pick(batch=batch,
+                                            index=index,
+                                            phase="P",
+                                            phasenet_model=model)
+                true_s_samp = get_true_pick(batch=batch,
+                                            index=index,
+                                            phase="S",
+                                            phasenet_model=model)
 
                 # Find predicted P and S arrival
-                pred_p_samp = get_predicted_pick(prediction=pred, index=index, true_pick=true_p_samp,
-                                                 sigma=sigma, phase="P", win_len_factor=win_len_factor,
+                pred_p_samp = get_predicted_pick(prediction=pred,
+                                                 index=index,
+                                                 true_pick=true_p_samp,
+                                                 sigma=sigma,
+                                                 phase="P",
+                                                 win_len_factor=win_len_factor,
                                                  phasenet_model=model)
-                pred_s_samp = get_predicted_pick(prediction=pred, index=index, true_pick=true_s_samp,
-                                                 sigma=sigma, phase="S", win_len_factor=win_len_factor,
+                pred_s_samp = get_predicted_pick(prediction=pred,
+                                                 index=index,
+                                                 true_pick=true_s_samp,
+                                                 sigma=sigma,
+                                                 phase="S",
+                                                 win_len_factor=win_len_factor,
                                                  phasenet_model=model)
 
                 # Get pick probabilities for P and S
-                p_prob = get_pick_probabilities(prediction=pred, prediction_sample=pred_p_samp,
-                                                index=index, phase="P", phasenet_model=model)
-                s_prob = get_pick_probabilities(prediction=pred, prediction_sample=pred_s_samp,
-                                                index=index, phase="S", phasenet_model=model)
+                p_prob = get_pick_probabilities(prediction=pred,
+                                                prediction_sample=pred_p_samp,
+                                                index=index,
+                                                phase="P",
+                                                phasenet_model=model)
+                s_prob = get_pick_probabilities(prediction=pred,
+                                                prediction_sample=pred_s_samp,
+                                                index=index,
+                                                phase="S",
+                                                phasenet_model=model)
 
                 # Write results to dictionary
                 pick_results["true_P"][index + (batch_index * dataloader.batch_size)] = true_p_samp
@@ -237,21 +273,34 @@ def get_picks(model, dataloader, sigma=30, win_len_factor=10):
     return pick_results
 
 
-def residual_histogram(residuals, axes, bins=60, xlim=(-100, 100)):
-    counts, bins = np.histogram(residuals, bins=bins, range=xlim)
-    axes.hist(bins[:-1], bins, weights=counts, edgecolor="b")
+def residual_histogram(residuals,
+                       axes,
+                       bins=60,
+                       xlim=(-100, 100)):
+    counts, bins = np.histogram(residuals,
+                                bins=bins,
+                                range=xlim)
+    axes.hist(bins[:-1], bins,
+              weights=counts,
+              edgecolor="b")
 
     return axes
 
 
-def add_metrics(axes, metrics: Metrics):
+def add_metrics(axes,
+                metrics: Metrics):
     # TODO: Add mean and standard deviation
     textstr = (f"Precision: {np.round(metrics.precision, 2)}\n"
                f"Recall: {np.round(metrics.recall, 2)}\n"
                f"F1 score: {np.round(metrics.f1_score, 2)}")
     props = dict(boxstyle='round', facecolor='white', alpha=0.5)
-    axes.text(0.05, 0.95, textstr, transform=axes.transAxes, fontsize=10,
-              verticalalignment='top', bbox=props)
+    axes.text(x=0.05,
+              y=0.95,
+              s=textstr,
+              transform=axes.transAxes,
+              fontsize=10,
+              verticalalignment='top',
+              bbox=props)
 
 
 def test_model(model: seisbench.models.phasenet.PhaseNet,
@@ -264,30 +313,49 @@ def test_model(model: seisbench.models.phasenet.PhaseNet,
     test_generator = sbg.GenericGenerator(test_dataset)
 
     augmentations = [
-        sbg.WindowAroundSample(list(get_phase_dict().keys()), samples_before=int(parameters["nsamples"] / 3),
+        sbg.WindowAroundSample(list(get_phase_dict().keys()),
+                               samples_before=int(parameters["nsamples"] / 3),
                                windowlen=parameters["nsamples"],
-                               selection="first", strategy="move"),
-        sbg.Normalize(demean_axis=-1, amp_norm_axis=-1, amp_norm_type=model.norm),
+                               selection="first",
+                               strategy="move"),
+        sbg.Normalize(demean_axis=-1,
+                      amp_norm_axis=-1,
+                      amp_norm_type=model.norm),
         sbg.ChangeDtype(np.float32),
-        sbg.ProbabilisticLabeller(label_columns=get_phase_dict(), sigma=parameters["sigma"], dim=0,
-                                  model_labels=model.labels, noise_column=True)
+        sbg.ProbabilisticLabeller(label_columns=get_phase_dict(),
+                                  sigma=parameters["sigma"],
+                                  dim=0,
+                                  model_labels=model.labels,
+                                  noise_column=True)
     ]
     test_generator.add_augmentations(augmentations)
-    test_loader = DataLoader(dataset=test_generator, batch_size=128,
-                             shuffle=False, num_workers=parameters["nworkers"],
-                             worker_init_fn=worker_seeding, drop_last=False)
+    test_loader = DataLoader(dataset=test_generator,
+                             batch_size=128,
+                             shuffle=False,
+                             num_workers=parameters["nworkers"],
+                             worker_init_fn=worker_seeding,
+                             drop_last=False)
 
-    picks_and_probs = get_picks(model=model, dataloader=test_loader, sigma=parameters["sigma"],
+    picks_and_probs = get_picks(model=model,
+                                dataloader=test_loader,
+                                sigma=parameters["sigma"],
                                 win_len_factor=parameters["win_len_factor"])
 
     # Evaluate metrics for P and S
     # 1. Determine true positives (tp), false positives (fp), and false negatives (fn) for P and S phases
-    metrics_p = Metrics(probabilities=picks_and_probs["prob_P"], residuals=picks_and_probs["residual_P"],
-                        true_pick_prob=parameters["true_pick_prob"], arrival_residual=parameters["arrival_residual"],
-                        predictions=picks_and_probs["pred_P"])
-    metrics_s = Metrics(probabilities=picks_and_probs["prob_S"], residuals=picks_and_probs["residual_S"],
-                        true_pick_prob=parameters["true_pick_prob"], arrival_residual=parameters["arrival_residual"],
-                        predictions=picks_and_probs["pred_S"])
+    metrics_p = Metrics(probabilities=picks_and_probs["prob_P"],
+                        residuals=picks_and_probs["residual_P"],
+                        true_pick_prob=parameters["true_pick_prob"],
+                        arrival_residual=parameters["arrival_residual"],
+                        predictions=picks_and_probs["pred_P"],
+                        prediction_array=picks_and_probs["array_P"])
+
+    metrics_s = Metrics(probabilities=picks_and_probs["prob_S"],
+                        residuals=picks_and_probs["residual_S"],
+                        true_pick_prob=parameters["true_pick_prob"],
+                        arrival_residual=parameters["arrival_residual"],
+                        predictions=picks_and_probs["pred_S"],
+                        prediction_array=picks_and_probs["array_S"])
 
     # 2. Plot time arrival residuals for P and S
     if plot_residual_histogram is True:

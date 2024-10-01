@@ -1,6 +1,8 @@
-import numpy as np
-from tqdm.auto import tqdm
 import torch
+import numpy as np
+
+from tqdm.auto import tqdm
+from typing import Union
 
 from core.utils import is_nan
 
@@ -67,13 +69,20 @@ class Metrics:
     """
 
     """
-    def __init__(self, probabilities, residuals, predictions=None,
-                 true_pick_prob=0.5, arrival_residual=10):
+    def __init__(self,
+                 probabilities: np.ndarray,
+                 residuals: np.ndarray,
+                 predictions: Union[None, np.ndarray]=None,
+                 prediction_array: Union[None, np.ndarray]=None,
+                 true_pick_prob: float=0.5,
+                 arrival_residual: int=10):
+
         self.probabilities = probabilities
         self.residuals = residuals
         self.true_pick_prob = true_pick_prob
         self.arrival_residual = arrival_residual
         self.predictions = predictions
+        self.prediction_array = prediction_array
 
         self.true_positive = None
         self.false_positive = None
@@ -99,17 +108,21 @@ class Metrics:
                     self.false_negative += 1
 
     @property
-    def precision(self, eps=1e-6) -> float:
-        return (self.true_positive + eps) / (self.true_positive + self.false_positive + eps)
+    def precision(self) -> float:
+        try:
+            return self.true_positive / (self.true_positive + self.false_positive)
+        except ZeroDivisionError:
+            # Limit of precision for high probabilities, e.g. 1
+            # Avoiding division by zero
+            return 1
 
     @property
-    def recall(self, eps=1e-6) -> float:
-        return (self.true_positive + eps) / (self.true_positive + self.false_negative + eps)
+    def recall(self) -> float:
+        return self.true_positive / (self.true_positive + self.false_negative)
 
     @property
-    def f1_score(self, eps=1e-6) -> float:
-        return 2 * ((self.precision * self.recall + eps) / (
-                    self.precision + self.recall + eps))
+    def f1_score(self) -> float:
+        return 2 * ((self.precision * self.recall) / (self.precision + self.recall))
 
 
 class VectorCrossEntropyLoss:

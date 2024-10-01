@@ -196,7 +196,9 @@ def main(parfile):
                        bar_format="{l_bar}{bar} [Elapsed time: {elapsed} {postfix}]") as pbar:
             for prob in probs:
                 parameters["true_pick_prob"] = prob
-                metrics_p, metrics_s = test_model(model=model, test_dataset=test, plot_residual_histogram=False,
+                metrics_p, metrics_s = test_model(model=model,
+                                                  test_dataset=test,
+                                                  plot_residual_histogram=False,
                                                   **parameters)
                 precision_p.append(metrics_p.precision)
                 precision_s.append(metrics_s.precision)
