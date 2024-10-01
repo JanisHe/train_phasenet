@@ -70,24 +70,19 @@ class Metrics:
 
     """
     def __init__(self,
-                 probabilities: np.ndarray,
-                 residuals: np.ndarray,
-                 predictions: Union[None, np.ndarray]=None,
+                 predictions: list,
                  true_pick_prob: float=0.5,
                  arrival_residual: int=10):
 
-        self.probabilities = probabilities
-        self.residuals = residuals
+        self.predictions = predictions
         self.true_pick_prob = true_pick_prob
         self.arrival_residual = arrival_residual
-        self.predictions = predictions
 
         self.true_positive = None
         self.false_positive = None
         self.false_negative = None
 
-        if self.predictions is not None:
-            self.true_false_positives()
+        self.true_false_positives()
 
     def __str__(self):
         pass
@@ -96,14 +91,17 @@ class Metrics:
         self.true_positive = 0
         self.false_positive = 0
         self.false_negative = 0
-        for prediction, probability, residual in zip(self.predictions, self.probabilities, self.residuals):
-            if not is_nan(prediction):
-                if probability >= self.true_pick_prob and abs(residual) <= self.arrival_residual:
-                    self.true_positive += 1
-                elif probability >= self.true_pick_prob and abs(residual) > self.arrival_residual:
-                    self.false_positive += 1
-                elif probability < self.true_pick_prob or abs(residual) > self.arrival_residual:
-                    self.false_negative += 1
+        for prediction in self.predictions:
+            if len(prediction) == 0:
+                self.false_negative += 1
+            else:
+                for element in prediction:
+                    if element["peak_value"] >= self.true_pick_prob and abs(element["residual"]) <= self.arrival_residual:
+                        self.true_positive += 1
+                    elif element["peak_value"] >= self.true_pick_prob and abs(element["residual"]) > self.arrival_residual:
+                        self.false_positive += 1
+                    elif element["peak_value"] < self.true_pick_prob or abs(element["residual"]) > self.arrival_residual:
+                        self.false_negative += 1
 
     @property
     def precision(self) -> float:

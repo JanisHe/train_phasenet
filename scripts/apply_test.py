@@ -5,12 +5,14 @@ import tqdm
 import numpy as np
 import torch
 import yaml
+from torch.ao.nn.quantized.functional import threshold
 from torch.utils.data import DataLoader
 import seisbench.models as sbm  # noqa
 import seisbench.generate as sbg # noqa
 import seisbench.data as sbd  # noqa
 from seisbench.util import worker_seeding # noqa
 import matplotlib.pyplot as plt
+from matplotlib.offsetbox import AnchoredText
 from typing import Union
 
 from core.pn_utils import get_phase_dict, test_model, get_picks
@@ -119,6 +121,17 @@ def misclassified_data(parfile, probability=None):
                 plt.show()
 
 
+def best_threshold(recall_precision_array: np.ndarray,
+                   thresholds: np.ndarray,
+                   optimal_value=np.array([1, 1])):
+    distances = np.zeros(recall_precision_array.shape[0])
+    for index, element in enumerate(recall_precision_array):
+        distances[index] = np.linalg.norm(element - optimal_value)
+
+    # Return probability for minimum of distances
+    return thresholds[np.argmin(distances)]
+
+
 def probabilities(parfile,
                   probs: Union[np.array, None] = None,
                   model_path: str = None):
@@ -188,6 +201,16 @@ def probabilities(parfile,
 
             pbar.update()
 
+    # Finding the best thresholds for P and S from precision-recall curve
+    # Determining distances of each precision-recall pair to point (1, 1)
+    # Smallest distance represents the best threshold
+    rp_p = np.array(list(zip(recalls_p, precisions_p)))  # recall-precision array for P
+    rp_s = np.array(list(zip(recalls_s, precisions_s)))  # recall-precision array for S
+    best_threshold_p = best_threshold(recall_precision_array=rp_p,
+                                      thresholds=probs)
+    best_threshold_s = best_threshold(recall_precision_array=rp_s,
+                                      thresholds=probs)
+
     # Plot
     fig= plt.figure(figsize=(11, 5))
     ax_pr = fig.add_subplot(121)
@@ -198,6 +221,22 @@ def probabilities(parfile,
     ax_pr.set_xlabel("Recall")
     ax_pr.set_ylabel("Precision")
     ax_pr.set_xlim(0, 1)
+    # Box for best model parameters
+    text_box = AnchoredText(s=f"Optimal P threshold: {best_threshold_p:.2f}\n"
+                              f"Optimal S threshold: {best_threshold_s:.2f}",
+                            frameon=False,
+                            loc="lower left",
+                            pad=0.5)
+    plt.setp(text_box.patch,
+             facecolor='white',
+             alpha=0.5)
+    ax_pr.add_artist(text_box)
+
+    # Set probabilities in PR curve
+    # for index, prob in enumerate(probs):
+    #     ax_pr.text(x=recalls_p[index],
+    #                y=precisions_p[index],
+    #                s=str(np.round(prob, 2)))
 
     ax = fig.add_subplot(122)
     ax.plot(probs, precisions_p, color="blue", linestyle="-", label="Precision P")
@@ -212,6 +251,7 @@ def probabilities(parfile,
     ax.set_ylabel("Precision / Recall")
     ax.legend()
     ax.grid(visible=True)
+    # ax.set_aspect("equal")
 
     plt.tight_layout()
     plt.savefig(f"./metrics/probabilities_{parameters['filename']}.svg")
@@ -222,7 +262,7 @@ def compare_models(models: dict, datasets: list, colors: Union[list, None] = Non
     P is always solid, S is dashed line
     """
     # Setup parameters
-    probs = np.linspace(0.00, 1.0, num=6)
+    probs = np.linspace(0.00, 1.0, num=5)
     parameters = dict(
         sigma=10,
         nworkers=10,
@@ -312,5 +352,5 @@ if __name__ == "__main__":
     #                   model_path="/home/jheuel/code/train_phasenet/models/final_models")
 
     probabilities(parfile=parfile,
-                  probs=np.linspace(0.0, 1, 40),
+                  probs=np.linspace(1e-3, 1, 20),
                   model_path=None)
