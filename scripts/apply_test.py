@@ -170,7 +170,7 @@ def probabilities(parfile,
     # Test model on test data from dataset
     # Loop over true_pick_probabilities
     if isinstance(probs, np.ndarray) is False:
-        probs = np.linspace(0.05, 0.8, num=5)
+        probs = np.linspace(1e-3, 0.99, num=10)
 
     precisions_p, precisions_s = [],  []
     recalls_p, recalls_s = [], []
@@ -352,5 +352,5 @@ if __name__ == "__main__":
     #                   model_path="/home/jheuel/code/train_phasenet/models/final_models")
 
     probabilities(parfile=parfile,
-                  probs=np.linspace(1e-3, 1, 20),
+                  probs=np.linspace(1e-3, 1.0, 20),
                   model_path=None)

@@ -92,16 +92,22 @@ class Metrics:
         self.false_positive = 0
         self.false_negative = 0
         for prediction in self.predictions:
-            if len(prediction) == 0:
-                self.false_negative += 1
+            if isinstance(prediction, list) is True:
+                if len(prediction) == 0:
+                    self.false_negative += 1
+                else:
+                    for element in prediction:
+                        if element["peak_value"] >= self.true_pick_prob and abs(
+                                element["residual"]) <= self.arrival_residual:
+                            self.true_positive += 1
+                        elif element["peak_value"] >= self.true_pick_prob and abs(
+                            element["residual"]) > self.arrival_residual:
+                            self.false_positive += 1
+                        elif element["peak_value"] < self.true_pick_prob or abs(
+                            element["residual"]) > self.arrival_residual:
+                            self.false_negative += 1
             else:
-                for element in prediction:
-                    if element["peak_value"] >= self.true_pick_prob and abs(element["residual"]) <= self.arrival_residual:
-                        self.true_positive += 1
-                    elif element["peak_value"] >= self.true_pick_prob and abs(element["residual"]) > self.arrival_residual:
-                        self.false_positive += 1
-                    elif element["peak_value"] < self.true_pick_prob or abs(element["residual"]) > self.arrival_residual:
-                        self.false_negative += 1
+                self.false_negative += 1
 
     @property
     def precision(self) -> float:
@@ -114,7 +120,10 @@ class Metrics:
 
     @property
     def recall(self) -> float:
-        return self.true_positive / (self.true_positive + self.false_negative)
+        try:
+            return self.true_positive / (self.true_positive + self.false_negative)
+        except ZeroDivisionError:
+            return 0
 
     @property
     def f1_score(self) -> float:
