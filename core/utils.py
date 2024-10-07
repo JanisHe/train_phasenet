@@ -233,16 +233,42 @@ def read_datasets(parameters: dict,
     return sb_dataset
 
 
-def add_fake_events_to_metadata(sb_dataset: sbd.WaveformDataset,
-                                number: int):
+def add_fake_events_to_metadata(metadata: pd.DataFrame,
+                                percentage: int):
+    # Convert metadata dataframe to dictionary
+    metadata_dct = metadata.to_dict(orient="list")
+
+    # Determine number of fake events from percentage and shape of metadata
+    number = int(len(metadata) * percentage / 100)
+
+    # Randomly add events to metadata by copying rows from metadata and append to dictionary
+    for i in range(number):
+        rand_data_index = np.random.randint(low=0,
+                                            high=len(metadata))
+        for key in metadata_dct:
+            metadata_dct[key].append(metadata_dct[key][rand_data_index])
+
+    # Convert dictionary back to pandas dataframe and return
+    return pd.DataFrame(metadata_dct)
+
+
+def add_fake_events(sb_dataset: sbd.WaveformDataset,
+                    percentage: int):
     """
     Copying metadata to add fake events
     """
     # Convert metadata to dictionary
-    metadata_dct = sb_dataset.metadata.to_dict(orient="list")
-    for i in range(number):
-        rand_data_index = np.random.randint(0, len(sb_dataset.metadata))
-        for key in metadata_dct:
-            metadata_dct[key].append(metadata_dct[key][rand_data_index])
-    metadata = pd.DataFrame(metadata_dct)
-    sb_dataset._metadata = metadata
+    if hasattr(sb_dataset, "datasets") is False:
+        sb_dataset._metadata = add_fake_events_to_metadata(metadata=sb_dataset.metadata,
+                                                           percentage=percentage)
+    elif hasattr(sb_dataset, "datasets") is True:
+        metadata_collection = []
+        for dataset in sb_dataset.datasets:  # Loop over each dataset
+            metadata = add_fake_events_to_metadata(metadata=dataset.metadata,
+                                                   percentage=percentage)
+            metadata_collection.append(metadata)
+            dataset._metadata = metadata
+
+        # Update metadata of full dataset
+        sb_dataset._metadata = pd.concat(objs=metadata_collection)
+

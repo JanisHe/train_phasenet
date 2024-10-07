@@ -17,7 +17,7 @@ import torch.optim as optim
 
 from pn_utils import get_phase_dict, test_model
 from torch_functions import train_model, VectorCrossEntropyLoss
-from utils import check_parameters, read_datasets, add_fake_events_to_metadata
+from utils import check_parameters, read_datasets, add_fake_events
 
 
 def main(parfile):
@@ -71,8 +71,8 @@ def main(parfile):
 
     # Add fake events to metadata
     if parameters.get("add_fake_events"):
-        add_fake_events_to_metadata(sb_dataset=seisbench_dataset,
-                                    number=int(len(seisbench_dataset) * parameters["add_fake_events"] / 100))
+        add_fake_events(sb_dataset=seisbench_dataset,
+                        percentage=parameters["add_fake_events"])
 
     # Split dataset in train, dev (validation) and test
     train, validation, test = seisbench_dataset.train_dev_test()
