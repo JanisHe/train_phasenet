@@ -169,8 +169,49 @@ class MeanSquaredError:
         return mse
 
 
-def train_model(model, train_loader, validation_loader, loss_fn,
-                optimizer=None, epochs=50, patience=5, lr_scheduler=None):
+class SaveBestModel:
+    """
+    Class to save the best model while training. If the current epoch's
+    validation loss is less than the previous least less, then save the
+    model state.
+
+    https://debuggercafe.com/saving-and-loading-the-best-model-in-pytorch/
+    """
+
+    def __init__(
+            self,
+            best_valid_loss=float('inf'),
+            model_name: str = "best_model.pth",
+            verbose: bool = False
+    ):
+        self.best_valid_loss = best_valid_loss
+        self.model_name = model_name
+        self.verbose = verbose
+
+    def __call__(
+            self,
+            current_valid_loss,
+            epoch,
+            model
+    ):
+        if current_valid_loss < self.best_valid_loss:
+            self.best_valid_loss = current_valid_loss
+            if self.verbose is True:
+                print(f"Saving best model for epoch {epoch + 1} as {self.model_name}")
+            torch.save(obj=model,
+                       f=self.model_name)
+
+
+def train_model(model,
+                train_loader,
+                validation_loader,
+                loss_fn,
+                optimizer=None,
+                epochs=50,
+                patience=5,
+                lr_scheduler=None,
+                model_name: str = "my_best_model.pth",
+                verbose: bool = True):
     """
 
     """
@@ -186,6 +227,9 @@ def train_model(model, train_loader, validation_loader, loss_fn,
 
     # Initialize early stopping class
     early_stopping = EarlyStopping(patience=patience, verbose=False, path_checkpoint=None)
+
+    # Initialize best model
+    best_model = SaveBestModel(model_name=model_name)
 
     # Loop over each epoch to start training
     for epoch in range(epochs):
@@ -228,6 +272,11 @@ def train_model(model, train_loader, validation_loader, loss_fn,
                  "val_loss": str(np.round(avg_valid_loss[-1], 4))}
             )
 
+            # Save model if validation loss decreased
+            best_model(current_valid_loss=avg_valid_loss[-1],
+                       epoch=epoch,
+                       model=model)
+
         # Re-open model for next epoch
         model.train()
 
@@ -244,7 +293,11 @@ def train_model(model, train_loader, validation_loader, loss_fn,
         early_stopping(avg_valid_loss[-1], model)
 
         if early_stopping.early_stop:
-            print("Validation loss does not decrease further. Early stopping")
+            if verbose:
+                print("Validation loss does not decrease further. Early stopping")
             break
+
+    if verbose is True:
+        print(f"Saved model as {model_name}.")
 
     return model, avg_train_loss, avg_valid_loss

@@ -56,6 +56,12 @@ def main(parfile):
         if not phases:
             phases = "PSN"
         model = sbm.PhaseNet(phases=phases, norm="peak")
+        # model = sbm.VariableLengthPhaseNet(phases=phases,
+        #                                    in_samples=parameters["nsamples"],
+        #                                    norm="peak",
+        #                                    stride=4,
+        #                                    kernel_size=11,
+        #                                    depth=2)
     # model = torch.compile(model)  # XXX Attribute error when saving model
 
     # Move model to GPU if GPU is available
@@ -151,25 +157,24 @@ def main(parfile):
     else:
         scheduler = None
 
+    # Parameters to save model
+    head, tail = os.path.split(parameters["model_name"])
+    if head == "":
+        if os.path.isdir(os.path.join(".", "models")) is False:
+            os.makedirs(os.path.join(".", "models"))
+        parameters["model_name"] = os.path.join('.', 'models', parameters['model_name'])
+    else:
+        if os.path.isdir(head) is False:
+            os.makedirs(head)
+
     model, train_loss, val_loss = train_model(model=model,
                                               patience=parameters["patience"],
                                               epochs=parameters["epochs"],
                                               loss_fn=loss_fn, optimizer=optimizer,
                                               train_loader=train_loader,
                                               validation_loader=val_loader,
-                                              lr_scheduler=scheduler)
-
-    # Save model
-    head, tail = os.path.split(parameters["model_name"])
-    if head == "":
-        if os.path.isdir(os.path.join(".", "models")) is False:
-            os.makedirs(os.path.join(".", "models"))
-        torch.save(model, os.path.join('.', 'models', parameters['model_name']))
-    else:
-        if os.path.isdir(head) is False:
-            os.makedirs(head)
-        torch.save(model, parameters['model_name'])
-    print(f"Saved model as {parameters['model_name']}.")
+                                              lr_scheduler=scheduler,
+                                              model_name=parameters["model_name"])
 
     # Plot training and validation loss
     fig_loss = plt.figure()
