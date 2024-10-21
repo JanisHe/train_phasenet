@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import seisbench.generate as sbg # noqa
 import seisbench.models as sbm # noqa
 from seisbench.util import worker_seeding # noqa
+from torch.nn.functional import dropout
 from torch.utils.data import DataLoader
 import torch.optim as optim
 
@@ -55,13 +56,15 @@ def main(parfile):
         phases = parameters.get("phases")
         if not phases:
             phases = "PSN"
-        model = sbm.PhaseNet(phases=phases, norm="peak")
-        # model = sbm.VariableLengthPhaseNet(phases=phases,
-        #                                    in_samples=parameters["nsamples"],
-        #                                    norm="peak",
-        #                                    stride=4,
-        #                                    kernel_size=11,
-        #                                    depth=2)
+        # model = sbm.PhaseNet(phases=phases, norm="peak")
+        model = sbm.VariableLengthPhaseNet(phases=phases,
+                                           in_samples=parameters["nsamples"],
+                                           norm="peak",
+                                           stride=parameters["stride"],
+                                           kernel_size=parameters["kernel_size"],
+                                           filters_root=parameters["filters_root"],
+                                           depth=parameters["depth"],
+                                           drop_rate=parameters["drop_rate"])
     # model = torch.compile(model)  # XXX Attribute error when saving model
 
     # Move model to GPU if GPU is available

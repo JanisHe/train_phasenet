@@ -181,6 +181,23 @@ def check_parameters(parameters: dict) -> dict:
         for dname, pathname in parameters["datasets"][0].items():
             parameters["datasets"][0][dname] = os.path.join(tmpdir, pathlib.Path(pathname).parts[-1])
 
+    # Check for drop_rate, stride, depth, kernel_size, and filter_root in parameters
+    # These parameters are used to modify the PhaseNet network
+    if not parameters.get("drop_rate"):
+        parameters["drop_rate"] = 0
+
+    if not parameters.get("stride"):
+        parameters["stride"] = 4
+
+    if not parameters.get("kernel_size"):
+        parameters["kernel_size"] = 7
+
+    if not parameters.get("filters_root"):
+        parameters["filters_root"] = 8
+
+    if not parameters.get("depth"):
+        parameters["depth"] = 5
+
     return parameters
 
 
