@@ -221,6 +221,7 @@ def probabilities(parfile,
     ax_pr.set_xlabel("Recall")
     ax_pr.set_ylabel("Precision")
     ax_pr.set_xlim(0, 1)
+    ax_pr.set_ylim(0.75, 1.05)
     # Box for best model parameters
     text_box = AnchoredText(s=f"Optimal P threshold: {best_threshold_p:.2f}\n"
                               f"Optimal S threshold: {best_threshold_s:.2f}",
