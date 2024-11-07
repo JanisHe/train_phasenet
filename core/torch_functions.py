@@ -1,4 +1,5 @@
 import torch
+import torchvision
 import numpy as np
 
 from tqdm.auto import tqdm
@@ -167,6 +168,31 @@ class MeanSquaredError:
         mse = mse.mean()
 
         return mse
+
+
+class FocalLoss:
+    def __init__(self,
+                 alpha: float = 0.25,
+                 gamma: float = 2,
+                 reduction: str = "none"):
+        self.alpha = alpha
+        self.gamma = gamma
+        self.reduction = reduction
+
+    def __call__(self,
+                 y_pred,
+                 y_true):
+        val =  torchvision.ops.sigmoid_focal_loss(inputs=y_pred,
+                                                  targets=y_true,
+                                                  alpha=self.alpha,
+                                                  gamma=self.gamma,
+                                                  reduction=self.reduction)
+
+        if self.reduction == "none":
+            val = val.mean(-1).sum(-1)
+            val = val.mean()
+
+        return val
 
 
 class SaveBestModel:
