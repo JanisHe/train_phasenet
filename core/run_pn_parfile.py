@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader
 import torch.optim as optim
 
 from pn_utils import get_phase_dict, test_model
-from torch_functions import train_model, VectorCrossEntropyLoss
+from torch_functions import train_model, VectorCrossEntropyLoss, FocalLoss
 from utils import check_parameters, read_datasets, add_fake_events
 
 
@@ -141,7 +141,8 @@ def main(parfile):
 
     # Start training
     # specify loss function
-    loss_fn = VectorCrossEntropyLoss()
+    # loss_fn = VectorCrossEntropyLoss()
+    loss_fn = FocalLoss()
 
     # specify learning rate and optimizer
     if isinstance(parameters["learning_rate"], float) or isinstance(parameters["learning_rate"], int):
