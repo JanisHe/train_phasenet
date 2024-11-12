@@ -136,12 +136,27 @@ def get_sb_phase_value(phase: str,
 def get_true_pick(batch: dict,
                   index: int,
                   phasenet_model: seisbench.models.phasenet.PhaseNet,
-                  phase: str = "P") -> Union[str, None]:
+                  phase: str = "P",
+                  samples_before: int=1000,
+                  s_p: int=200) -> Union[str, None]:
     phase_index = get_sb_phase_value(phase=phase,
                                      phasennet_model=phasenet_model)
-    true_pick_index = np.argmax(batch["y"][index, phase_index, :].detach().numpy())
 
-    if true_pick_index == 0:
+    # Define search space for true P- and S-arrival
+    start = int(samples_before - s_p)
+    end = int(start + 3 * s_p)
+
+    # Set limits for start and end
+    if start < 0:
+        start = 0
+    if end > len(batch["y"][index, phase_index, :]):
+        end = len(batch["y"][index, phase_index, :])
+
+    true_pick_index = np.argmax(batch["y"][index, phase_index, start:end].detach().numpy())
+
+    true_pick_index = int(true_pick_index + samples_before - s_p)
+
+    if true_pick_index <= 0:
         return None
     else:
         return true_pick_index
@@ -177,7 +192,7 @@ def get_predicted_pick(prediction: torch.Tensor,
     prediction_window = prediction[index, phase_index, lower_bound:upper_bound].detach().numpy()
 
     # Get picks in window
-    # Methods is copied from seisbench.models.base.WavefromModel.picks_from_annotations
+    # Methods is copied from seisbench.models.base.WaveformModel.picks_from_annotations
     picks = []
     triggers = trigger_onset(charfct=prediction[index, phase_index, lower_bound:upper_bound].detach().numpy(),
                              thres1=threshold,
@@ -219,7 +234,8 @@ def get_picks(model,
               dataloader,
               sigma: int=30,
               win_len_factor: int=10,
-              threshold: float=0.1):
+              threshold: float=0.1,
+              samples_before: int=0):
 
     pick_results = {"true_P": np.empty(len(dataloader.dataset)),
                     "true_S": np.empty(len(dataloader.dataset)),
@@ -227,19 +243,33 @@ def get_picks(model,
                     "pred_S": [],
                     }
 
+    # Map main phase arrivals, i.e. trace_P_arrival_sample and trace_S_arrival_sample, to P and S
+    metadata = map_arrivals(dataframe=dataloader.dataset.dataset.metadata)
+
     with torch.no_grad():
         for batch_index, batch in enumerate(dataloader):
             pred = model(batch["X"].to(model.device))
             for index in range(pred.shape[0]):
+                # Determine S-P time
+                try:
+                    s_p = metadata.loc[index + (batch_index * dataloader.batch_size), "S"] - \
+                          metadata.loc[index + (batch_index * dataloader.batch_size), "P"]
+                except KeyError:
+                    s_p = 250
+
                 # Find true P and S phase arrival
                 true_p_samp = get_true_pick(batch=batch,
                                             index=index,
                                             phase="P",
-                                            phasenet_model=model)
+                                            phasenet_model=model,
+                                            samples_before=samples_before,
+                                            s_p=s_p)
                 true_s_samp = get_true_pick(batch=batch,
                                             index=index,
                                             phase="S",
-                                            phasenet_model=model)
+                                            phasenet_model=model,
+                                            samples_before=samples_before,
+                                            s_p=s_p)
 
                 # Find predicted P and S arrival
                 pred_p_samp = get_predicted_pick(prediction=pred,
@@ -309,11 +339,12 @@ def test_model(model: seisbench.models.phasenet.PhaseNet,
     """
     test_generator = sbg.GenericGenerator(test_dataset)
 
+    samples_before = int(parameters["nsamples"] / 3)
     augmentations = [
         sbg.WindowAroundSample(list(get_phase_dict().keys()),
-                               samples_before=int(parameters["nsamples"] / 3),
+                               samples_before=samples_before,
                                windowlen=parameters["nsamples"],
-                               selection="first",
+                               selection="first",    # XXX Problem with multi events
                                strategy="move"),
         sbg.Normalize(demean_axis=-1,
                       amp_norm_axis=-1,
@@ -337,7 +368,8 @@ def test_model(model: seisbench.models.phasenet.PhaseNet,
                                 dataloader=test_loader,
                                 sigma=parameters["sigma"],
                                 win_len_factor=parameters["win_len_factor"],
-                                threshold=parameters["true_pick_prob"])
+                                threshold=parameters["true_pick_prob"],
+                                samples_before=samples_before)
 
     # Evaluate metrics for P and S
     # 1. Determine true positives (tp), false positives (fp), and false negatives (fn) for P and S phases
