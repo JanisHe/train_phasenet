@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader
 import torch.optim as optim
 
 from pn_utils import get_phase_dict, test_model
-from torch_functions import train_model, VectorCrossEntropyLoss
+from torch_functions import train_model, VectorCrossEntropyLoss, FocalLoss
 from utils import check_parameters, read_datasets, add_fake_events
 
 
@@ -139,10 +139,19 @@ def main(parfile):
                             shuffle=False, num_workers=parameters["nworkers"],
                             worker_init_fn=worker_seeding)
 
-    # Start training
-    # specify loss function
-    loss_fn = VectorCrossEntropyLoss()
+    # Set up loss function from parameters
+    if parameters.get("loss_function"):
+        if parameters.get("loss_function").lower() == "focal_loss":
+            loss_fn = FocalLoss()
+        elif parameters.get("loss_function").lower() == "cross_entropy":
+            loss_fn = VectorCrossEntropyLoss()
+        else:
+            msg = f"Loss function {parameters.get('loss_function')} is not known."
+            raise ValueError(msg)
+    else:
+        loss_fn = VectorCrossEntropyLoss()
 
+    # Start training
     # specify learning rate and optimizer
     if isinstance(parameters["learning_rate"], float) or isinstance(parameters["learning_rate"], int):
         lr = parameters["learning_rate"]
