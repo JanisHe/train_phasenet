@@ -174,7 +174,7 @@ class FocalLoss:
     def __init__(self,
                  alpha: float = 0.25,
                  gamma: float = 2,
-                 reduction: str = "none"):
+                 reduction: str = "mean"):
         self.alpha = alpha
         self.gamma = gamma
         self.reduction = reduction

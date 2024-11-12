@@ -139,11 +139,19 @@ def main(parfile):
                             shuffle=False, num_workers=parameters["nworkers"],
                             worker_init_fn=worker_seeding)
 
-    # Start training
-    # specify loss function
-    # loss_fn = VectorCrossEntropyLoss()
-    loss_fn = FocalLoss()
+    # Set up loss function from parameters
+    if parameters.get("loss_function"):
+        if parameters.get("loss_function").lower() == "focal_loss":
+            loss_fn = FocalLoss()
+        elif parameters.get("loss_function").lower() == "cross_entropy":
+            loss_fn = VectorCrossEntropyLoss()
+        else:
+            msg = f"Loss function {parameters.get('loss_function')} is not known."
+            raise ValueError(msg)
+    else:
+        loss_fn = VectorCrossEntropyLoss()
 
+    # Start training
     # specify learning rate and optimizer
     if isinstance(parameters["learning_rate"], float) or isinstance(parameters["learning_rate"], int):
         lr = parameters["learning_rate"]
