@@ -154,7 +154,7 @@ def get_true_pick(batch: dict,
 
     true_pick_index = np.argmax(batch["y"][index, phase_index, start:end].detach().numpy())
 
-    true_pick_index = int(true_pick_index + samples_before - s_p)
+    true_pick_index = int(true_pick_index + start)
 
     if true_pick_index <= 0:
         return None
