@@ -353,5 +353,5 @@ if __name__ == "__main__":
     #                   model_path="/home/jheuel/code/train_phasenet/models/final_models")
 
     probabilities(parfile=parfile,
-                  probs=np.linspace(1e-3, 1.0, 50),
+                  probs=np.linspace(1e-3, 1.0, 20),
                   model_path=None)
