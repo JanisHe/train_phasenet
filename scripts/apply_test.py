@@ -248,7 +248,7 @@ def probabilities(parfile,
     ax.plot(probs, f1_s, color="black", linestyle="--", label="F1 S")
     ax.set_ylim(0.25, 1.05)
     ax.set_xlim(0, 1)
-    ax.set_xlabel("True pick probability")
+    ax.set_xlabel("Pick threshold")
     ax.set_ylabel("Precision / Recall")
     ax.legend()
     ax.grid(visible=True)
@@ -353,5 +353,5 @@ if __name__ == "__main__":
     #                   model_path="/home/jheuel/code/train_phasenet/models/final_models")
 
     probabilities(parfile=parfile,
-                  probs=np.linspace(1e-3, 1.0, 20),
+                  probs=np.linspace(1e-3, 1.0, 50),
                   model_path=None)
