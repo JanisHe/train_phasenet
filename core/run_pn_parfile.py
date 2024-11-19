@@ -16,9 +16,8 @@ from torch.nn.functional import dropout
 from torch.utils.data import DataLoader
 import torch.optim as optim
 
-from pn_utils import get_phase_dict, test_model
 from torch_functions import train_model, VectorCrossEntropyLoss, FocalLoss
-from utils import check_parameters, read_datasets, add_fake_events
+from utils import check_parameters, read_datasets, add_fake_events, get_phase_dict, test_model
 
 
 def main(parfile):

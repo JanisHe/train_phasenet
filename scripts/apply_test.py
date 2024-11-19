@@ -15,8 +15,7 @@ import matplotlib.pyplot as plt
 from matplotlib.offsetbox import AnchoredText
 from typing import Union
 
-from core.pn_utils import get_phase_dict, test_model, get_picks
-from core.utils import is_nan, read_datasets
+from core.utils import is_nan, read_datasets, get_phase_dict, test_model, get_picks
 
 
 def main(parfile):

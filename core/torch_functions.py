@@ -3,9 +3,6 @@ import torchvision
 import numpy as np
 
 from tqdm.auto import tqdm
-from typing import Union
-
-from core.utils import is_nan
 
 
 class EarlyStopping:
