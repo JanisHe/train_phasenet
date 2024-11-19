@@ -19,24 +19,25 @@ from obspy.signal.trigger import trigger_onset
 from core.torch_functions import Metrics
 
 
-def rms(x):
+def rms(x: np.array) -> float:
     """
     Root-mean-square of array x
-    :param x:
-    :return:
+    :param x: numpy array with a dimension of 1
     """
     # Remove mean
     x = x - np.mean(x)
     return np.sqrt(np.sum(x ** 2) / x.shape[0])
 
 
-def signal_to_noise_ratio(signal, noise, decibel=True):
+def signal_to_noise_ratio(signal: np.array,
+                          noise: np.array,
+                          decibel: bool=True) -> float:
     """
-    SNR in dB
-    :param signal:
-    :param noise:
-    :param decibel:
-    :return:
+    Returns signal-to-noise ratio (SNR) from given signal array and noise array.
+
+    :param signal: np.array for the signal
+    :param noise: np.array for noise
+    :param decibel: If True, SNR is returned in decibel (dB), default is True
     """
     if decibel is True:
         return 20 * np.log10(rms(signal) / rms(noise))
@@ -44,11 +45,15 @@ def signal_to_noise_ratio(signal, noise, decibel=True):
         return rms(signal) / rms(noise)
 
 
-def snr(signal, noise, decibel=True):
+def snr(signal: np.array,
+        noise: np.array,
+        decibel: bool=True) -> float:
     """
-    Wrapper for signal-to-noise ratio
+    Wrapper for signal-to-noise_ratio
     """
-    return signal_to_noise_ratio(signal=signal, noise=noise, decibel=decibel)
+    return signal_to_noise_ratio(signal=signal,
+                                 noise=noise,
+                                 decibel=decibel)
 
 
 def snr_pick(trace: obspy.Trace,
@@ -412,6 +417,9 @@ def map_arrivals(dataframe: pd.DataFrame,
 
 def get_sb_phase_value(phase: str,
                        phasennet_model: seisbench.models.phasenet.PhaseNet) -> int:
+    """
+    Reads phases labels from seisbench model and returns the index of the phase
+    """
     try:
         return phasennet_model.labels.index(phase)
     except ValueError:
