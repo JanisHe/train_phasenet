@@ -108,7 +108,7 @@ def main(parfile):
     if parameters.get("rotate") is True:
         augmentations.append(sbg.RotateHorizontalComponents())
 
-    # Add RealNoise to augmentations if noise_datasets are in parmeters
+    # Add RealNoise to augmentations if noise_datasets are in parameters
     if parameters.get("noise_datasets"):
         noise_dataset = read_datasets(parameters=parameters, dataset_key="noise_datasets")
         # TODO: trace_Z_snr is hard coded
@@ -123,7 +123,9 @@ def main(parfile):
         )
 
     # Change dtype of data (necessary for PyTorch and the last augmentation step)
-    augmentations.append(sbg.Normalize(demean_axis=-1, amp_norm_axis=-1, amp_norm_type=model.norm))
+    augmentations.append(sbg.Normalize(demean_axis=-1,
+                                       amp_norm_axis=-1,
+                                       amp_norm_type=model.norm))
     augmentations.append(sbg.ChangeDtype(np.float32))
 
     # Add augmentations to generators
@@ -131,11 +133,15 @@ def main(parfile):
     val_generator.add_augmentations(augmentations=augmentations)
 
     # Define generators to load data
-    train_loader = DataLoader(dataset=train_generator, batch_size=parameters["batch_size"],
-                              shuffle=True, num_workers=parameters["nworkers"],
+    train_loader = DataLoader(dataset=train_generator,
+                              batch_size=parameters["batch_size"],
+                              shuffle=True,
+                              num_workers=parameters["nworkers"],
                               worker_init_fn=worker_seeding)
-    val_loader = DataLoader(dataset=val_generator, batch_size=parameters["batch_size"],
-                            shuffle=False, num_workers=parameters["nworkers"],
+    val_loader = DataLoader(dataset=val_generator,
+                            batch_size=parameters["batch_size"],
+                            shuffle=False,
+                            num_workers=parameters["nworkers"],
                             worker_init_fn=worker_seeding)
 
     # Set up loss function from parameters
