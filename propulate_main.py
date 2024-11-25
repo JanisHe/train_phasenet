@@ -17,7 +17,7 @@ log = logging.getLogger("propulate")  # Get logger instance.
 
 if __name__ == "__main__":
     generations = 10
-    num_islands = 2  # Number of islands
+    num_islands = 1  # Number of islands
     migration_probability = 0.9  # Migration probability
     pollination = True  # Whether to use pollination or migration
     checkpoint_path = "./propulate_ckpt"
