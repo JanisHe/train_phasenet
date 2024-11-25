@@ -40,7 +40,11 @@ class EarlyStopping:
     Early stops the training if validation loss doesn't improve after a given patience.
     https://github.com/Bjarten/early-stopping-pytorch/blob/master/pytorchtools.py
     """
-    def __init__(self, patience=7, verbose=False, delta=0, path_checkpoint=None, trace_func=print):
+    def __init__(self, patience=7,
+                 verbose=False,
+                 delta=0,
+                 path_checkpoint=None,
+                 trace_func=print):
         """
         Args:
             patience (int): How long to wait after last time validation loss improved.
@@ -380,7 +384,9 @@ def train_model_propulate(model,
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
     # Initialize early stopping class
-    early_stopping = EarlyStopping(patience=patience, verbose=False, path_checkpoint=None)
+    # early_stopping = EarlyStopping(patience=patience,
+    #                                verbose=False,
+    #                                path_checkpoint=None)
 
     # Loop over each epoch to start training
     rank = dist.get_rank()
@@ -460,7 +466,7 @@ def train_model_propulate(model,
 
         # early_stopping needs the validation loss to check if it has decresed,
         # and if it has, it will make a checkpoint of the current model
-        early_stopping(avg_valid_loss[-1], model)
+        # early_stopping(avg_valid_loss[-1], model)
 
         if early_stopping.early_stop:
             print("Validation loss does not decrease further. Early stopping")
@@ -886,7 +892,7 @@ def ind_loss(h_params: dict[str, int | float],
         scheduler = None
 
     model, train_loss, val_loss = train_model_propulate(model=model,
-                                                        patience=parameters["patience"],
+                                                        patience=parameters.get("patience"),
                                                         epochs=parameters["epochs"],
                                                         loss_fn=loss_fn,
                                                         optimizer=optimizer,
