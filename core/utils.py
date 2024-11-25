@@ -608,20 +608,20 @@ def residual_histogram(residuals,
     return axes
 
 
-def add_metrics(axes,
-                metrics: Metrics):
-    # TODO: Add mean and standard deviation
-    textstr = (f"Precision: {np.round(metrics.precision, 2)}\n"
-               f"Recall: {np.round(metrics.recall, 2)}\n"
-               f"F1 score: {np.round(metrics.f1_score, 2)}")
-    props = dict(boxstyle='round', facecolor='white', alpha=0.5)
-    axes.text(x=0.05,
-              y=0.95,
-              s=textstr,
-              transform=axes.transAxes,
-              fontsize=10,
-              verticalalignment='top',
-              bbox=props)
+# def add_metrics(axes,
+#                 metrics: Metrics):
+#     # TODO: Add mean and standard deviation
+#     textstr = (f"Precision: {np.round(metrics.precision, 2)}\n"
+#                f"Recall: {np.round(metrics.recall, 2)}\n"
+#                f"F1 score: {np.round(metrics.f1_score, 2)}")
+#     props = dict(boxstyle='round', facecolor='white', alpha=0.5)
+#     axes.text(x=0.05,
+#               y=0.95,
+#               s=textstr,
+#               transform=axes.transAxes,
+#               fontsize=10,
+#               verticalalignment='top',
+#               bbox=props)
 
 
 # def test_model(model: seisbench.models.phasenet.PhaseNet,
