@@ -795,7 +795,7 @@ def ind_loss(h_params: dict[str, int | float],
     """
     torch_process_group_init_propulate(subgroup_comm, method=SUBGROUP_COMM_METHOD)
 
-    parfile = "../propulate_parfile.yml"   # TODO: Use propulate parfile ot avoid confusion
+    parfile = "./propulate_parfile.yml"   # TODO: Use propulate parfile ot avoid confusion
     with open(parfile, "r") as file:
         parameters = yaml.safe_load(file)
 
