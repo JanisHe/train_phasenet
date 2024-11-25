@@ -1,8 +1,47 @@
+import os
+import shutil
+import subprocess
+import pathlib
+import warnings
 import torch
+import logging
+import time
+import logging
+import yaml
+import requests
+import contextlib
+import seisbench # noqa
+import obspy
+import socket
+import contextlib
 import torchvision
-import numpy as np
 
+import numpy as np
+import pandas as pd
+
+import datetime as dt
+import seisbench.data as sbd  # noqa
+import seisbench.models as sbm # noqa
+import seisbench.generate as sbg # noqa
+from joblib.testing import param
+from tqdm import tqdm
+from mpi4py import MPI
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
+import torch.optim as optim
+from typing import Union
+import matplotlib.pyplot as plt
+from torch.utils.data import DataLoader
+from seisbench.util import worker_seeding # noqa
 from tqdm.auto import tqdm
+import torch.utils.data.distributed as datadist
+
+from core.utils import read_datasets, add_fake_events, get_phase_dict, check_parameters, is_nan
+
+
+log = logging.getLogger("propulate")  # Get logger instance.
+SUBGROUP_COMM_METHOD = "nccl-slurm"
+GPUS_PER_NODE = 4
 
 
 class EarlyStopping:
@@ -324,3 +363,550 @@ def train_model(model,
         print(f"Saved model as {model_name}.")
 
     return model, avg_train_loss, avg_valid_loss
+
+
+def train_model_propulate(model,
+                         train_loader,
+                         validation_loader,
+                         loss_fn,
+                         optimizer=None,
+                         epochs=50,
+                         patience=5,
+                         lr_scheduler=None,
+                         model_name: str = "my_best_model.pth",
+                         verbose: bool = True):
+    """
+
+    """
+    # Initialize lists to track losses
+    train_loss = []
+    valid_loss = []
+    avg_train_loss = []
+    avg_valid_loss = []
+
+    # Load optimizer
+    if not optimizer:
+        optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+
+    # Initialize early stopping class
+    early_stopping = EarlyStopping(patience=patience, verbose=False, path_checkpoint=None)
+
+    # Loop over each epoch to start training
+    rank = dist.get_rank()
+    for epoch in range(epochs):
+        print(f"Start epoch {epoch + 1} for rank {rank}")
+        # Train model (loop over each batch; batch_size is defined in DataLoader)
+        # TODO (idea): test model with validation (compute metrics)
+        train_loader.sampler.set_epoch(epoch)
+        validation_loader.sampler.set_epoch(epoch)
+        num_batches = len(train_loader)
+        if rank == 0:
+            # progress_bar = tqdm(total=num_batches + len(validation_loader),
+            #                     desc=f"Epoch {epoch + 1}",
+            #                     ncols=100,
+            #                     bar_format="{l_bar}{bar} [Elapsed time: {elapsed} {postfix}]")
+            progress_bar = contextlib.nullcontext()
+        else:
+            progress_bar = contextlib.nullcontext()
+
+        with progress_bar as pbar:
+            for batch_id, batch in enumerate(train_loader):
+                # Compute prediction and loss
+                pred = model(batch["X"].to(model.device))
+                loss = loss_fn(y_pred=pred, y_true=batch["y"].to(model.device))
+
+                # Do backpropagation
+                optimizer.zero_grad()  # clear the gradients of all optimized variables
+                loss.backward()  # backward pass: compute gradient of the loss with respect to model parameters
+                optimizer.step()  # perform a single optimization step (parameter update)
+
+                # Compute loss for each batch and write loss to predefined lists
+                dist.all_reduce(loss)
+                loss /= dist.get_world_size()
+                train_loss.append(loss.item())
+
+                # # Update progressbar
+                # if rank == 0:
+                #     pbar.set_postfix({"loss": str(np.round(loss.item(), 4))})
+                #     pbar.update()
+
+            # Validate the model
+            print(f"Validate epoch {epoch + 1} for rank {rank}")
+            model.eval()  # Close the model for validation / evaluation
+            with torch.no_grad():  # Disable gradient calculation
+                for batch in validation_loader:
+                    pred = model(batch["X"].to(model.device))
+                    val_loss = loss_fn(pred, batch["y"].to(model.device))
+                    dist.all_reduce(val_loss)
+                    val_loss /= dist.get_world_size()
+                    valid_loss.append(val_loss.item())
+
+                    # if rank == 0:
+                    #     pbar.set_postfix({"val_loss": str(np.round(val_loss.item(), 4))})
+                    #     pbar.update()
+
+            # Determine average training and validation loss
+            avg_train_loss.append(sum(train_loss) / len(train_loss))
+            avg_valid_loss.append(sum(valid_loss) / len(valid_loss))
+
+            # # Update progressbar
+            # if rank == 0:
+            #     pbar.set_postfix(
+            #         {"loss": str(np.round(avg_train_loss[-1], 4)),
+            #          "val_loss": str(np.round(avg_valid_loss[-1], 4))}
+            #     )
+
+        # Re-open model for next epoch
+        model.train()
+
+        # Clear training and validation loss lists for next epoch
+        train_loss = []
+        valid_loss = []
+
+        # Update learning rate
+        if lr_scheduler:
+            lr_scheduler.step()
+
+        # early_stopping needs the validation loss to check if it has decresed,
+        # and if it has, it will make a checkpoint of the current model
+        early_stopping(avg_valid_loss[-1], model)
+
+        if early_stopping.early_stop:
+            print("Validation loss does not decrease further. Early stopping")
+            break
+
+    return model, avg_train_loss, avg_valid_loss
+
+
+def torch_process_group_init(comm: MPI.Comm, method: str) -> None:
+    """
+    Create the torch process group.
+
+    Parameters
+    ----------
+    comm : MPI.Comm
+        Communciator used for training the model in data parallel fashion
+    method : str
+        The method to use to initialize the process group.
+        Options: [``nccl-slurm``, ``nccl-openmpi``, ``gloo``]
+        If CUDA is not available, ``gloo`` is automatically chosen for the method.
+    """
+    global _DATA_PARALLEL_GROUP
+    global _DATA_PARALLEL_ROOT
+
+    comm_rank, comm_size = comm.rank, comm.size
+
+    # Get master address and port
+    port = 29500
+
+    if comm_size == 1:
+        return
+    # OLD
+    master_address = os.environ["MASTER_ADDR"]
+    # Each rank needs to get the hostname of rank 0 of its group.
+    # master_address = comm.bcast(str(master_address), root=0)
+
+    # Save environment variables.
+    # os.environ["MASTER_ADDR"] = master_address
+    # Use the default PyTorch port.
+    os.environ["MASTER_PORT"] = str(port)
+
+    if not torch.cuda.is_available():
+        method = "gloo"
+        # log.info("No CUDA devices found: Falling back to gloo.")
+        print("No CUDA devices found: Falling back to gloo.")
+    else:
+        # log.info(f"CUDA_VISIBLE_DEVICES: {os.environ['CUDA_VISIBLE_DEVICES']}")
+        print(f"CUDA_VISIBLE_DEVICES: {os.environ['CUDA_VISIBLE_DEVICES']}")
+        num_cuda_devices = torch.cuda.device_count()
+        device_number = MPI.COMM_WORLD.rank % num_cuda_devices
+        # log.info(f"device count: {num_cuda_devices}, device number: {device_number}")
+        print(f"device count: {num_cuda_devices}, device number: {device_number}")
+        torch.cuda.set_device(device_number)
+
+    time.sleep(0.001 * comm_rank)  # Avoid DDOS'ing rank 0.
+    if method == "nccl-openmpi":  # Use NCCL with OpenMPI.
+        dist.init_process_group(
+            backend="nccl",
+            rank=comm_rank,
+            world_size=comm_size,
+        )
+
+    elif method == "nccl-slurm":  # Use NCCL with a TCP store.
+        wireup_store = dist.TCPStore(
+            host_name=master_address,
+            port=port,
+            world_size=comm_size,
+            is_master=(comm_rank == 0),
+            timeout=dt.timedelta(seconds=60),
+        )
+        dist.init_process_group(
+            backend="nccl",
+            store=wireup_store,
+            world_size=comm_size,
+            rank=comm_rank,
+        )
+    elif method == "gloo":  # Use gloo.
+        wireup_store = dist.TCPStore(
+            host_name=master_address,
+            port=port,
+            world_size=comm_size,
+            is_master=(comm_rank == 0),
+            timeout=dt.timedelta(seconds=60),
+        )
+        dist.init_process_group(
+            backend="gloo",
+            store=wireup_store,
+            world_size=comm_size,
+            rank=comm_rank,
+        )
+    else:
+        raise NotImplementedError(
+            f"Given 'method' ({method}) not in [nccl-openmpi, nccl-slurm, gloo]!"
+        )
+
+    # Call a barrier here in order for sharp to use the default comm.
+    if dist.is_initialized():
+        dist.barrier()
+        disttest = torch.ones(1)
+        if method != "gloo":
+            disttest = disttest.cuda()
+
+        dist.all_reduce(disttest)
+        assert disttest[0] == comm_size, "Failed test of dist!"
+    else:
+        disttest = None
+    # log.info(
+    #     f"Finish subgroup torch.dist init: world size: {dist.get_world_size()}, rank: {dist.get_rank()}"
+    # )
+    print(f"Finish subgroup torch.dist init: world size: {dist.get_world_size()}, rank: {dist.get_rank()}")
+
+
+def torch_process_group_init_propulate(subgroup_comm: MPI.Comm, method: str) -> None:
+    """
+    Create the torch process group of each multi-rank worker from a subgroup of the MPI world.
+
+    Parameters
+    ----------
+    subgroup_comm : MPI.Comm
+        The split communicator for the multi-rank worker's subgroup. This is provided to the individual's loss function
+        by the ``Islands`` class if there are multiple ranks per worker.
+    method : str
+        The method to use to initialize the process group.
+        Options: [``nccl-slurm``, ``nccl-openmpi``, ``gloo``]
+        If CUDA is not available, ``gloo`` is automatically chosen for the method.
+    """
+    global _DATA_PARALLEL_GROUP
+    global _DATA_PARALLEL_ROOT
+
+    comm_rank, comm_size = subgroup_comm.rank, subgroup_comm.size
+
+    # Get master address and port
+    # Don't want different groups to use the same port.
+    subgroup_id = MPI.COMM_WORLD.rank // comm_size
+    port = 29500 + subgroup_id
+
+    if comm_size == 1:
+        return
+    master_address = f"{socket.gethostname()[:-7]}i"  # THIS IS THE NEW BIT! IT WILL PULL OUT THE rank-0 NODE NAME
+    # Each multi-rank worker rank needs to get the hostname of rank 0 of its subgroup.
+    master_address = subgroup_comm.bcast(str(master_address), root=0)
+
+    # Save environment variables.
+    os.environ["MASTER_ADDR"] = master_address
+    # Use the default PyTorch port.
+    os.environ["MASTER_PORT"] = str(port)
+
+    if not torch.cuda.is_available():
+        method = "gloo"
+        log.info("No CUDA devices found: Falling back to gloo.")
+    else:
+        log.info(f"CUDA_VISIBLE_DEVICES: {os.environ['CUDA_VISIBLE_DEVICES']}")
+        num_cuda_devices = torch.cuda.device_count()
+        device_number = MPI.COMM_WORLD.rank % num_cuda_devices
+        log.info(f"device count: {num_cuda_devices}, device number: {device_number}")
+        torch.cuda.set_device(device_number)
+
+    time.sleep(0.001 * comm_rank)  # Avoid DDOS'ing rank 0.
+    if method == "nccl-openmpi":  # Use NCCL with OpenMPI.
+        dist.init_process_group(
+            backend="nccl",
+            rank=comm_rank,
+            world_size=comm_size,
+        )
+
+    elif method == "nccl-slurm":  # Use NCCL with a TCP store.
+        wireup_store = dist.TCPStore(
+            host_name=master_address,
+            port=port,
+            world_size=comm_size,
+            is_master=(comm_rank == 0),
+            timeout=dt.timedelta(seconds=60),
+        )
+        dist.init_process_group(
+            backend="nccl",
+            store=wireup_store,
+            world_size=comm_size,
+            rank=comm_rank,
+        )
+    elif method == "gloo":  # Use gloo.
+        wireup_store = dist.TCPStore(
+            host_name=master_address,
+            port=port,
+            world_size=comm_size,
+            is_master=(comm_rank == 0),
+            timeout=dt.timedelta(seconds=60),
+        )
+        dist.init_process_group(
+            backend="gloo",
+            store=wireup_store,
+            world_size=comm_size,
+            rank=comm_rank,
+        )
+    else:
+        raise NotImplementedError(
+            f"Given 'method' ({method}) not in [nccl-openmpi, nccl-slurm, gloo]!"
+        )
+
+    # Call a barrier here in order for sharp to use the default comm.
+    if dist.is_initialized():
+        dist.barrier()
+        disttest = torch.ones(1)
+        if method != "gloo":
+            disttest = disttest.cuda()
+
+        dist.all_reduce(disttest)
+        assert disttest[0] == comm_size, "Failed test of dist!"
+    else:
+        disttest = None
+    log.info(
+        f"Finish subgroup torch.dist init: world size: {dist.get_world_size()}, rank: {dist.get_rank()}"
+    )
+
+
+def get_data_loaders(comm: MPI.Comm,
+                     parameters: dict,
+                     model):
+
+    # Read waveform datasets
+    seisbench_dataset = read_datasets(parameters=parameters,
+                                      component_order=model.component_order,
+                                      dataset_key="datasets",
+                                      filter=parameters.get("filter"))
+
+    # Add fake events to metadata
+    if parameters.get("add_fake_events"):
+        add_fake_events(sb_dataset=seisbench_dataset,
+                        percentage=parameters["add_fake_events"])
+
+    # Split dataset in train, dev (validation) and test
+    train, validation, test = seisbench_dataset.train_dev_test()
+
+    # Define generators for training and validation
+    train_generator = sbg.GenericGenerator(train)
+    val_generator = sbg.GenericGenerator(validation)
+
+    # Build augmentations and labels
+    # Ensure that all phases are in requested window
+    augmentations = [
+        sbg.WindowAroundSample(list(get_phase_dict().keys()),
+                               samples_before=int(0.8 * parameters["nsamples"]),
+                               windowlen=int(1.5 * parameters["nsamples"]),
+                               selection="first",
+                               strategy="variable"),
+        sbg.RandomWindow(windowlen=parameters["nsamples"],
+                         strategy="pad"),
+        sbg.ProbabilisticLabeller(shape=parameters["labeler"],
+                                  label_columns=get_phase_dict(),
+                                  sigma=parameters["sigma"],
+                                  dim=0,
+                                  model_labels=model.labels,
+                                  noise_column=True)
+    ]
+
+    if parameters.get("rotate") is True:
+        augmentations.append(sbg.RotateHorizontalComponents())
+
+    # Add RealNoise to augmentations if noise_datasets are in parmeters
+    if parameters.get("noise_datasets"):
+        noise_dataset = read_datasets(parameters=parameters, dataset_key="noise_datasets")
+        # TODO: trace_Z_snr is hard coded
+        augmentations.append(
+            sbg.OneOf(
+                augmentations=[sbg.RealNoise(
+                    noise_dataset=noise_dataset,
+                    metadata_thresholds={"trace_Z_snr_db": 10}
+                )],
+                probabilities=[0.5]
+            )
+        )
+
+    # Change dtype of data (necessary for PyTorch and the last augmentation step)
+    augmentations.append(sbg.Normalize(demean_axis=-1,
+                                       amp_norm_axis=-1,
+                                       amp_norm_type=model.norm))
+    augmentations.append(sbg.ChangeDtype(np.float32))
+
+    # Add augmentations to generators
+    train_generator.add_augmentations(augmentations=augmentations)
+    val_generator.add_augmentations(augmentations=augmentations)
+
+    if comm.size > 1:  # Make the samplers use the torch world to distribute data
+        train_sampler = datadist.DistributedSampler(train_generator,
+                                                    seed=42)
+        val_sampler = datadist.DistributedSampler(val_generator,
+                                                  seed=42)
+    else:
+        train_sampler = None
+        val_sampler = None
+
+    num_workers = parameters["nworkers"]
+    print(f"Use {num_workers} workers in dataloader.")
+
+    # Define generators to load data
+    train_loader = DataLoader(dataset=train_generator,
+                              batch_size=parameters["batch_size"],
+                              num_workers=parameters["nworkers"],
+                              pin_memory=True,
+                              persistent_workers=True,
+                              shuffle=(train_sampler is None),
+                              sampler=train_sampler)
+
+    val_loader = DataLoader(dataset=val_generator,
+                            batch_size=parameters["batch_size"],
+                            num_workers=parameters["nworkers"],
+                            pin_memory=True,
+                            persistent_workers=True,
+                            shuffle=(val_sampler is None),
+                            sampler=val_sampler)
+
+    return train_loader, val_loader, test
+
+
+def ind_loss(h_params: dict[str, int | float],
+             subgroup_comm: MPI.Comm) \
+        -> float:
+    """
+    Loss function for evolutionary optimization with Propulate. Minimize the model's negative validation accuracy.
+
+    Parameters
+    ----------
+    h_params : dict[str, int | float]
+        The hyperparameters to be optimized evolutionarily. Here, batch_size, learning_rate,
+        stride, in_samples, kernel_size, filters_root, drop_rate, depth
+    subgroup_comm : MPI.Comm
+        Each multi-rank worker's subgroup communicator.
+
+    Returns
+    -------
+    float
+        The trained model's validation loss.
+    """
+    torch_process_group_init_propulate(subgroup_comm, method=SUBGROUP_COMM_METHOD)
+
+    parfile = "../propulate_parfile.yml"   # TODO: Use propulate parfile ot avoid confusion
+    with open(parfile, "r") as file:
+        parameters = yaml.safe_load(file)
+
+    # Extract hyperparameter combination to test from input dictionary and add to parameters dictionary
+    parameters["learning_rate"] = h_params["learning_rate"]
+    parameters["batch_size"] = h_params["batch_size"]
+    parameters["nsamples"] = h_params["nsamples"]
+    parameters["stride"] = h_params["stride"]
+    parameters["kernel_size"] = h_params["kernel_size"]
+    parameters["filters_root"] = h_params["filters_root"]
+    parameters["depth"] = h_params["depth"]
+    parameters["drop_rate"] = h_params["drop_rate"]
+
+    filename = pathlib.Path(parameters["model_name"]).stem
+    parameters["filename"] = filename
+
+    # Set number of workers for PyTorch
+    # https://github.com/pytorch/pytorch/issues/101850
+    os.sched_setaffinity(0, range(os.cpu_count()))
+
+    # Make copy of parfile and rename it by filename given in parameters
+    if not os.path.exists("./parfiles"):
+        os.makedirs("./parfiles")
+    try:
+        shutil.copyfile(src=parfile, dst=f"./parfiles/{filename}.yml")
+    except shutil.SameFileError:
+        pass
+
+    # Check parameters and modify e.g. metadata
+    parameters = check_parameters(parameters=parameters)
+
+    # Load model
+    if parameters.get("preload_model"):
+        try:
+            model = sbm.PhaseNet.from_pretrained(parameters["preload_model"])
+        except (ValueError, requests.exceptions.ConnectionError) as e:
+            if os.path.isfile(parameters["preload_model"]) is True:
+                model = torch.load(parameters["preload_model"], map_location=torch.device("cpu"))
+            else:
+                msg = f"{e}\nDid not find {parameters['preload_model']}."
+                raise IOError(msg)
+    else:
+        phases = parameters.get("phases")
+        if not phases:
+            phases = "PSN"
+        # model = sbm.PhaseNet(phases=phases, norm="peak")
+        model = sbm.VariableLengthPhaseNet(phases=phases,
+                                           in_samples=parameters["nsamples"],
+                                           norm="peak",
+                                           stride=parameters["stride"],
+                                           kernel_size=parameters["kernel_size"],
+                                           filters_root=parameters["filters_root"],
+                                           depth=parameters["depth"],
+                                           drop_rate=parameters["drop_rate"])
+
+    train_loader, val_loader, test = get_data_loaders(comm=subgroup_comm,
+                                                      parameters=parameters,
+                                                      model=model)
+
+    # Move model to GPU if GPU is available
+    if torch.cuda.is_available():
+        device = subgroup_comm.rank % GPUS_PER_NODE
+    else:
+        device = "cpu"
+
+    # Auf Juwels muss als device "cuda" benutzt werden
+    model = model.to("cuda")
+    # Au Haicore werden alle gesehen, deswegen wird device gewaehlt
+    # model = model.to(device)
+
+    if dist.is_initialized() and dist.get_world_size() > 1:
+        model = DDP(model)  # Wrap model with DDP.
+
+    # Start training
+    # specify loss function
+    loss_fn = VectorCrossEntropyLoss()
+
+    # specify learning rate and optimizer
+    optimizer = torch.optim.Adam(model.parameters(),
+                                 lr=parameters["learning_rate"])
+
+    # Decaying learning rate
+    if isinstance(parameters["learning_rate"], dict) and parameters["learning_rate"].get("decay") is True:
+        scheduler = optim.lr_scheduler.StepLR(optimizer,
+                                              step_size=parameters["learning_rate"]["step_size"],
+                                              gamma=parameters["learning_rate"]["gamma"])
+    else:
+        scheduler = None
+
+    model, train_loss, val_loss = train_model_propulate(model=model,
+                                                        patience=parameters["patience"],
+                                                        epochs=parameters["epochs"],
+                                                        loss_fn=loss_fn,
+                                                        optimizer=optimizer,
+                                                        train_loader=train_loader,
+                                                        validation_loader=val_loader,
+                                                        lr_scheduler=scheduler)
+
+    # Return best validation loss as an individual's loss (trained so lower is better).
+    dist.destroy_process_group()
+
+    min_loss = min(val_loss)
+    if is_nan(min_loss):
+        return 1000
+    return min_loss

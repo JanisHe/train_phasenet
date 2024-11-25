@@ -1,0 +1,10 @@
+sampling_rate: 100
+labeler: gaussian    # gaussian | triangle | box
+sigma: 10            # Half-width of labeler
+# add_fake_events: 200   # Copying events increase training data set (in percent)
+datasets:
+    - insheim: /scratch/gpi/seis/jheuel/ai_datasets/insheim
+epochs: 10
+nworkers: 12
+# patience: 5        # early stopping
+model_name: test_propulate.pth
