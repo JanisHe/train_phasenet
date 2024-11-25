@@ -808,12 +808,12 @@ def ind_loss(h_params: dict[str, int | float],
     # Extract hyperparameter combination to test from input dictionary and add to parameters dictionary
     parameters["learning_rate"] = h_params["learning_rate"]
     parameters["batch_size"] = h_params["batch_size"]
-    parameters["nsamples"] = h_params["nsamples"]
-    parameters["stride"] = h_params["stride"]
-    parameters["kernel_size"] = h_params["kernel_size"]
-    parameters["filters_root"] = h_params["filters_root"]
-    parameters["depth"] = h_params["depth"]
-    parameters["drop_rate"] = h_params["drop_rate"]
+    parameters["nsamples"] = 3001 # h_params["nsamples"]
+    parameters["stride"] = 4 #h_params["stride"]
+    parameters["kernel_size"] = 7 # h_params["kernel_size"]
+    parameters["filters_root"] = 8 # h_params["filters_root"]
+    parameters["depth"] = 5 # h_params["depth"]
+    parameters["drop_rate"] = 0 # h_params["drop_rate"]
 
     filename = pathlib.Path(parameters["model_name"]).stem
     parameters["filename"] = filename

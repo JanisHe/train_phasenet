@@ -27,13 +27,13 @@ if __name__ == "__main__":
     pop_size = 2 * comm.size  # Breeding population size
     # TODO: XXX activation function
     limits_dict = {"learning_rate": (0.0001, 0.01),
-                   "batch_size": (64, 128, 256, 512, 1024, 2048),
-                   "nsamples": (501, 3001),
-                   "stride": (4, 10),
-                   "kernel_size": (4, 12),
-                   "filters_root": (7, 9),
-                   "depth": (1, 6),
-                   "drop_rate": (0.0, 0.5)}
+                   "batch_size": (64, 128, 256, 512, 1024, 2048),}
+                   # "nsamples": (501, 3001),
+                   # "stride": (4, 10),
+                   # "kernel_size": (4, 12),
+                   # "filters_root": (7, 9),
+                   # "depth": (1, 6),
+                   # "drop_rate": (0.0, 0.5)}
     rng = random.Random(
         comm.rank
     )  # Set up separate random number generator for evolutionary optimizer.
