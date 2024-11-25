@@ -1,36 +1,27 @@
 import os
 import shutil
-import subprocess
 import pathlib
-import warnings
 import torch
-import logging
 import time
 import logging
 import yaml
 import requests
-import contextlib
 import seisbench # noqa
-import obspy
 import socket
 import contextlib
 # import torchvision
 
 import numpy as np
-import pandas as pd
 
 import datetime as dt
 import seisbench.data as sbd  # noqa
 import seisbench.models as sbm # noqa
 import seisbench.generate as sbg # noqa
-from joblib.testing import param
 from tqdm import tqdm
 from mpi4py import MPI
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.optim as optim
-from typing import Union
-import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from seisbench.util import worker_seeding # noqa
 from tqdm.auto import tqdm
