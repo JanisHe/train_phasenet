@@ -896,7 +896,13 @@ def ind_loss(h_params: dict[str, int | float],
     # Return best validation loss as an individual's loss (trained so lower is better).
     dist.destroy_process_group()
 
-    min_loss = min(val_loss)
+    # If parameters for model do not fit and neither training or validation was possible
+    # These case are catched by try and error statement
+    if len(val_loss) == 0:
+        return 1000
+    else:
+        min_loss = min(val_loss)
+
     if is_nan(min_loss):
         return 1000
     return min_loss
