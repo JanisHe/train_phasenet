@@ -449,8 +449,9 @@ def train_model_propulate(model,
                     #     pbar.update()
 
             # Determine average training and validation loss
-            avg_train_loss.append(sum(train_loss) / len(train_loss))
-            avg_valid_loss.append(sum(valid_loss) / len(valid_loss))
+            if len(train_loss) > 0 and len(valid_loss) > 0:
+                avg_train_loss.append(sum(train_loss) / len(train_loss))
+                avg_valid_loss.append(sum(valid_loss) / len(valid_loss))
 
             # # Update progressbar
             # if rank == 0:
