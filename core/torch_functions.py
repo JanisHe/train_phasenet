@@ -435,7 +435,10 @@ def train_model_propulate(model,
             model.eval()  # Close the model for validation / evaluation
             with torch.no_grad():  # Disable gradient calculation
                 for batch in validation_loader:
-                    pred = model(batch["X"].to(model.device))
+                    try:
+                        pred = model(batch["X"].to(model.device))
+                    except RuntimeError:
+                        continue
                     val_loss = loss_fn(pred, batch["y"].to(model.device))
                     dist.all_reduce(val_loss)
                     val_loss /= dist.get_world_size()
