@@ -409,7 +409,10 @@ def train_model_propulate(model,
         with progress_bar as pbar:
             for batch_id, batch in enumerate(train_loader):
                 # Compute prediction and loss
-                pred = model(batch["X"].to(model.device))
+                try:
+                    pred = model(batch["X"].to(model.device))
+                except RuntimeError:
+                    continue
                 loss = loss_fn(y_pred=pred, y_true=batch["y"].to(model.device))
 
                 # Do backpropagation
@@ -808,12 +811,12 @@ def ind_loss(h_params: dict[str, int | float],
     # Extract hyperparameter combination to test from input dictionary and add to parameters dictionary
     parameters["learning_rate"] = h_params["learning_rate"]
     parameters["batch_size"] = h_params["batch_size"]
-    parameters["nsamples"] = 3001 # h_params["nsamples"]
-    parameters["stride"] = 4 #h_params["stride"]
-    parameters["kernel_size"] = 7 # h_params["kernel_size"]
+    parameters["nsamples"] = h_params["nsamples"]
+    parameters["stride"] = h_params["stride"]
+    parameters["kernel_size"] = h_params["kernel_size"]
     parameters["filters_root"] = 8 # h_params["filters_root"]
-    parameters["depth"] = 5 # h_params["depth"]
-    parameters["drop_rate"] = 0 # h_params["drop_rate"]
+    parameters["depth"] = h_params["depth"]
+    parameters["drop_rate"] = h_params["drop_rate"]
 
     filename = pathlib.Path(parameters["model_name"]).stem
     parameters["filename"] = filename
@@ -834,28 +837,14 @@ def ind_loss(h_params: dict[str, int | float],
     parameters = check_parameters(parameters=parameters)
 
     # Load model
-    if parameters.get("preload_model"):
-        try:
-            model = sbm.PhaseNet.from_pretrained(parameters["preload_model"])
-        except (ValueError, requests.exceptions.ConnectionError) as e:
-            if os.path.isfile(parameters["preload_model"]) is True:
-                model = torch.load(parameters["preload_model"], map_location=torch.device("cpu"))
-            else:
-                msg = f"{e}\nDid not find {parameters['preload_model']}."
-                raise IOError(msg)
-    else:
-        phases = parameters.get("phases")
-        if not phases:
-            phases = "PSN"
-        # model = sbm.PhaseNet(phases=phases, norm="peak")
-        model = sbm.VariableLengthPhaseNet(phases=phases,
-                                           in_samples=parameters["nsamples"],
-                                           norm="peak",
-                                           stride=parameters["stride"],
-                                           kernel_size=parameters["kernel_size"],
-                                           filters_root=parameters["filters_root"],
-                                           depth=parameters["depth"],
-                                           drop_rate=parameters["drop_rate"])
+    model = sbm.VariableLengthPhaseNet(phases="PSN",
+                                       in_samples=parameters["nsamples"],
+                                       norm="peak",
+                                       stride=parameters["stride"],
+                                       kernel_size=parameters["kernel_size"],
+                                       filters_root=parameters["filters_root"],
+                                       depth=parameters["depth"],
+                                       drop_rate=parameters["drop_rate"])
 
     train_loader, val_loader, test = get_data_loaders(comm=subgroup_comm,
                                                       parameters=parameters,
