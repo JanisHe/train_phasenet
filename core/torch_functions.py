@@ -818,9 +818,10 @@ def ind_loss(h_params: dict[str, int | float],
     parameters["nsamples"] = h_params["nsamples"]
     parameters["stride"] = h_params["stride"]
     parameters["kernel_size"] = h_params["kernel_size"]
-    parameters["filters_root"] = 8 # h_params["filters_root"]
+    parameters["filters_root"] = h_params["filters_root"]
     parameters["depth"] = h_params["depth"]
     parameters["drop_rate"] = h_params["drop_rate"]
+    activation_function = h_params["activation_function"]
 
     filename = pathlib.Path(parameters["model_name"]).stem
     parameters["filename"] = filename
@@ -848,7 +849,8 @@ def ind_loss(h_params: dict[str, int | float],
                                        kernel_size=parameters["kernel_size"],
                                        filters_root=parameters["filters_root"],
                                        depth=parameters["depth"],
-                                       drop_rate=parameters["drop_rate"])
+                                       drop_rate=parameters["drop_rate"],
+                                       activation=activation_function)
 
     train_loader, val_loader, test = get_data_loaders(comm=subgroup_comm,
                                                       parameters=parameters,
