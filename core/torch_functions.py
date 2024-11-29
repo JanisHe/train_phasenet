@@ -473,7 +473,8 @@ def train_model_propulate(model,
 
         # early_stopping needs the validation loss to check if it has decresed,
         # and if it has, it will make a checkpoint of the current model
-        early_stopping(avg_valid_loss[-1], model)
+        if len(avg_valid_loss) > 0:
+            early_stopping(avg_valid_loss[-1], model)
 
         if early_stopping.early_stop:
             print("Validation loss does not decrease further. Early stopping")
