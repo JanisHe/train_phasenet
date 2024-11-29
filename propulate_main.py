@@ -1,6 +1,7 @@
 import logging
 import pathlib
 import random
+import torch
 
 from mpi4py import MPI
 
@@ -27,13 +28,18 @@ if __name__ == "__main__":
     pop_size = 2 * comm.size  # Breeding population size
     # TODO: XXX activation function
     limits_dict = {"learning_rate": (0.0001, 0.01),
-                   "batch_size": (64, 128, 256, 512, 1024, 2048),}
-                   # "nsamples": (501, 3001),
-                   # "stride": (4, 10),
-                   # "kernel_size": (4, 12),
-                   # "filters_root": (7, 9),
-                   # "depth": (1, 6),
-                   # "drop_rate": (0.0, 0.5)}
+                   "batch_size": (64, 128, 256, 512, 1024, 2048),
+                   "nsamples": (501, 1001, 2001, 3001),
+                   "kernel_size": (4, 12),
+                   "depth": (1, 6),
+                   "drop_rate": (0.0, 0.5),
+                   "stride": (1, 11),
+                   "filters_root": (2, 4, 8, 16),
+                   "activation_function": (torch.nn.ELU,
+                                           torch.nn.ReLU,
+                                           torch.nn.GELU,
+                                           torch.nn.LeakyReLU)}
+
     rng = random.Random(
         comm.rank
     )  # Set up separate random number generator for evolutionary optimizer.
