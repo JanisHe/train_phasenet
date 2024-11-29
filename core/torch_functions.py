@@ -823,6 +823,18 @@ def ind_loss(h_params: dict[str, int | float],
     parameters["drop_rate"] = h_params["drop_rate"]
     activation_function = h_params["activation_function"]
 
+    if activation_function.lower() == "elu":
+        activation_function = torch.nn.ELU
+    elif activation_function.lower() == "relu":
+        activation_function = torch.nn.ReLU
+    elif activation_function.lower() == "gelu":
+        activation_function = torch.nn.GELU
+    elif activation_function.lower() == "leakyrelu":
+        activation_function = torch.nn.LeakyReLU
+    else:
+        msg = f"The activation function {activation_function} is not implemented."
+        raise ValueError(msg)
+
     filename = pathlib.Path(parameters["model_name"]).stem
     parameters["filename"] = filename
 

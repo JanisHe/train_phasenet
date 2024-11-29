@@ -35,10 +35,7 @@ if __name__ == "__main__":
                    "drop_rate": (0.0, 0.5),
                    "stride": (1, 11),
                    "filters_root": (2, 4, 8, 16),
-                   "activation_function": (torch.nn.ELU,
-                                           torch.nn.ReLU,
-                                           torch.nn.GELU,
-                                           torch.nn.LeakyReLU)}
+                   "activation_function": ("elu", "relu", "gelu", "leakyrelu")}
 
     rng = random.Random(
         comm.rank
