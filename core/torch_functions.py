@@ -824,13 +824,13 @@ def ind_loss(h_params: dict[str, int | float],
     activation_function = h_params["activation_function"]
 
     if activation_function.lower() == "elu":
-        activation_function = torch.nn.ELU
+        activation_function = torch.nn.ELU()
     elif activation_function.lower() == "relu":
-        activation_function = torch.nn.ReLU
+        activation_function = torch.nn.ReLU()
     elif activation_function.lower() == "gelu":
-        activation_function = torch.nn.GELU
+        activation_function = torch.nn.GELU()
     elif activation_function.lower() == "leakyrelu":
-        activation_function = torch.nn.LeakyReLU
+        activation_function = torch.nn.LeakyReLU()
     else:
         msg = f"The activation function {activation_function} is not implemented."
         raise ValueError(msg)
@@ -852,6 +852,15 @@ def ind_loss(h_params: dict[str, int | float],
 
     # Check parameters and modify e.g. metadata
     parameters = check_parameters(parameters=parameters)
+
+    print("Parameter for PhaseNet:\n"
+          f"in_samples: {parameters['nsamples']}\n"
+          f"stride: {parameters['stride']}\n"
+          f"kernel_size: {parameters['kernel_size']}\n"
+          f"filters_root: {parameters['filters_root']}\n"
+          f"depth: {parameters['depth']}\n"
+          f"drop_rate: {parameters['drop_rate']}\n"
+          f"activation function: {activation_function}")
 
     # Load model
     model = sbm.VariableLengthPhaseNet(phases="PSN",
