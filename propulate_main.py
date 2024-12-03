@@ -26,7 +26,7 @@ if __name__ == "__main__":
     comm = MPI.COMM_WORLD
 
     pop_size = 2 * comm.size  # Breeding population size
-    # TODO: XXX activation function
+    # TODO: Write h_params to yaml
     limits_dict = {"learning_rate": (0.0001, 0.01),
                    "batch_size": (64, 128, 256, 512, 1024, 2048),
                    "nsamples": (501, 1001, 2001, 3001),
@@ -50,7 +50,7 @@ if __name__ == "__main__":
         colors=True,  # Use colors.
     )
     if comm.rank == 0:
-        log.info("Starting Torch DDP tutorial!")
+        log.info("Starting DDP + Propulate on PhaseNet!")
 
     propagator = get_default_propagator(  # Get default evolutionary operator.
         pop_size=pop_size,  # Breeding population size

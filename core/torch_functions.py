@@ -239,11 +239,13 @@ class SaveBestModel:
             self,
             best_valid_loss=float('inf'),
             model_name: str = "best_model.pth",
-            verbose: bool = False
+            verbose: bool = False,
+            trace_func=print
     ):
         self.best_valid_loss = best_valid_loss
         self.model_name = model_name
         self.verbose = verbose
+        self.trace_func = trace_func
 
     def __call__(
             self,
@@ -254,7 +256,7 @@ class SaveBestModel:
         if current_valid_loss < self.best_valid_loss:
             self.best_valid_loss = current_valid_loss
             if self.verbose is True:
-                print(f"Saving best model for epoch {epoch + 1} as {self.model_name}")
+                self.trace_func(f"Saving best model for epoch {epoch + 1} as {self.model_name}")
             torch.save(obj=model,
                        f=self.model_name)
 
@@ -368,8 +370,7 @@ def train_model_propulate(model,
                          epochs=50,
                          patience=5,
                          lr_scheduler=None,
-                         model_name: str = "my_best_model.pth",
-                         verbose: bool = True):
+                         trace_func=print):
     """
 
     """
@@ -386,12 +387,13 @@ def train_model_propulate(model,
     # Initialize early stopping class
     early_stopping = EarlyStopping(patience=patience,
                                    verbose=False,
-                                   path_checkpoint=None)
+                                   path_checkpoint=None,
+                                   trace_func=trace_func)
 
     # Loop over each epoch to start training
     rank = dist.get_rank()
     for epoch in range(epochs):
-        print(f"Start epoch {epoch + 1} for rank {rank}")
+        trace_func(f"Start epoch {epoch + 1} for rank {rank}")
         # Train model (loop over each batch; batch_size is defined in DataLoader)
         # TODO (idea): test model with validation (compute metrics)
         train_loader.sampler.set_epoch(epoch)
@@ -431,7 +433,7 @@ def train_model_propulate(model,
                 #     pbar.update()
 
             # Validate the model
-            print(f"Validate epoch {epoch + 1} for rank {rank}")
+            trace_func(f"Validate epoch {epoch + 1} for rank {rank}")
             model.eval()  # Close the model for validation / evaluation
             with torch.no_grad():  # Disable gradient calculation
                 for batch in validation_loader:
@@ -477,13 +479,15 @@ def train_model_propulate(model,
             early_stopping(avg_valid_loss[-1], model)
 
         if early_stopping.early_stop:
-            print("Validation loss does not decrease further. Early stopping")
+            trace_func("Validation loss does not decrease further. Early stopping")
             break
 
     return model, avg_train_loss, avg_valid_loss
 
 
-def torch_process_group_init(comm: MPI.Comm, method: str) -> None:
+def torch_process_group_init(comm: MPI.Comm,
+                             method: str,
+                             trace_func=print) -> None:
     """
     Create the torch process group.
 
@@ -518,15 +522,12 @@ def torch_process_group_init(comm: MPI.Comm, method: str) -> None:
 
     if not torch.cuda.is_available():
         method = "gloo"
-        # log.info("No CUDA devices found: Falling back to gloo.")
-        print("No CUDA devices found: Falling back to gloo.")
+        trace_func("No CUDA devices found: Falling back to gloo.")
     else:
-        # log.info(f"CUDA_VISIBLE_DEVICES: {os.environ['CUDA_VISIBLE_DEVICES']}")
-        print(f"CUDA_VISIBLE_DEVICES: {os.environ['CUDA_VISIBLE_DEVICES']}")
+        trace_func(f"CUDA_VISIBLE_DEVICES: {os.environ['CUDA_VISIBLE_DEVICES']}")
         num_cuda_devices = torch.cuda.device_count()
         device_number = MPI.COMM_WORLD.rank % num_cuda_devices
-        # log.info(f"device count: {num_cuda_devices}, device number: {device_number}")
-        print(f"device count: {num_cuda_devices}, device number: {device_number}")
+        trace_func(f"device count: {num_cuda_devices}, device number: {device_number}")
         torch.cuda.set_device(device_number)
 
     time.sleep(0.001 * comm_rank)  # Avoid DDOS'ing rank 0.
@@ -581,13 +582,14 @@ def torch_process_group_init(comm: MPI.Comm, method: str) -> None:
         assert disttest[0] == comm_size, "Failed test of dist!"
     else:
         disttest = None
-    # log.info(
-    #     f"Finish subgroup torch.dist init: world size: {dist.get_world_size()}, rank: {dist.get_rank()}"
-    # )
-    print(f"Finish subgroup torch.dist init: world size: {dist.get_world_size()}, rank: {dist.get_rank()}")
+
+    trace_func(f"Finish subgroup torch.dist init: world size: {dist.get_world_size()}, "
+               f"rank: {dist.get_rank()}")
 
 
-def torch_process_group_init_propulate(subgroup_comm: MPI.Comm, method: str) -> None:
+def torch_process_group_init_propulate(subgroup_comm: MPI.Comm,
+                                       method: str,
+                                       trace_func=print) -> None:
     """
     Create the torch process group of each multi-rank worker from a subgroup of the MPI world.
 
@@ -624,12 +626,12 @@ def torch_process_group_init_propulate(subgroup_comm: MPI.Comm, method: str) -> 
 
     if not torch.cuda.is_available():
         method = "gloo"
-        log.info("No CUDA devices found: Falling back to gloo.")
+        trace_func("No CUDA devices found: Falling back to gloo.")
     else:
-        log.info(f"CUDA_VISIBLE_DEVICES: {os.environ['CUDA_VISIBLE_DEVICES']}")
+        trace_func(f"CUDA_VISIBLE_DEVICES: {os.environ['CUDA_VISIBLE_DEVICES']}")
         num_cuda_devices = torch.cuda.device_count()
         device_number = MPI.COMM_WORLD.rank % num_cuda_devices
-        log.info(f"device count: {num_cuda_devices}, device number: {device_number}")
+        trace_func(f"device count: {num_cuda_devices}, device number: {device_number}")
         torch.cuda.set_device(device_number)
 
     time.sleep(0.001 * comm_rank)  # Avoid DDOS'ing rank 0.
@@ -684,7 +686,7 @@ def torch_process_group_init_propulate(subgroup_comm: MPI.Comm, method: str) -> 
         assert disttest[0] == comm_size, "Failed test of dist!"
     else:
         disttest = None
-    log.info(
+    trace_func(
         f"Finish subgroup torch.dist init: world size: {dist.get_world_size()}, rank: {dist.get_rank()}"
     )
 
@@ -789,8 +791,7 @@ def get_data_loaders(comm: MPI.Comm,
 
 
 def ind_loss(h_params: dict[str, int | float],
-             subgroup_comm: MPI.Comm) \
-        -> float:
+             subgroup_comm: MPI.Comm) -> float:
     """
     Loss function for evolutionary optimization with Propulate. Minimize the model's negative validation accuracy.
 
@@ -807,7 +808,9 @@ def ind_loss(h_params: dict[str, int | float],
     float
         The trained model's validation loss.
     """
-    torch_process_group_init_propulate(subgroup_comm, method=SUBGROUP_COMM_METHOD)
+    torch_process_group_init_propulate(subgroup_comm,
+                                       method=SUBGROUP_COMM_METHOD,
+                                       trace_func=log.info)
 
     parfile = "./propulate_parfile.yml"   # TODO: Use propulate parfile ot avoid confusion
     with open(parfile, "r") as file:
@@ -854,14 +857,14 @@ def ind_loss(h_params: dict[str, int | float],
     # Check parameters and modify e.g. metadata
     parameters = check_parameters(parameters=parameters)
 
-    print("Parameter for PhaseNet:\n"
-          f"in_samples: {parameters['nsamples']}\n"
-          f"stride: {parameters['stride']}\n"
-          f"kernel_size: {parameters['kernel_size']}\n"
-          f"filters_root: {parameters['filters_root']}\n"
-          f"depth: {parameters['depth']}\n"
-          f"drop_rate: {parameters['drop_rate']}\n"
-          f"activation function: {activation_function}")
+    log.info("Parameter for PhaseNet:\n"
+             f"in_samples: {parameters['nsamples']}\n"
+             f"stride: {parameters['stride']}\n"
+             f"kernel_size: {parameters['kernel_size']}\n"
+             f"filters_root: {parameters['filters_root']}\n"
+             f"depth: {parameters['depth']}\n"
+             f"drop_rate: {parameters['drop_rate']}\n"
+             f"activation function: {activation_function}")
 
     # Load model
     model = sbm.VariableLengthPhaseNet(phases="PSN",
