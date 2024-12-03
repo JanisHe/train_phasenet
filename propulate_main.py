@@ -1,8 +1,10 @@
+import sys
+import os
 import logging
 import pathlib
 import random
-import torch
 
+import yaml
 from mpi4py import MPI
 
 from propulate import Islands
@@ -16,26 +18,28 @@ log_path = "torch_ckpts"
 log = logging.getLogger("propulate")  # Get logger instance.
 
 
-if __name__ == "__main__":
-    generations = 10
-    num_islands = 1  # Number of islands
-    migration_probability = 0.9  # Migration probability
-    pollination = True  # Whether to use pollination or migration
-    checkpoint_path = "./propulate_ckpt"
+def main(parfile):
+    """
+
+    """
+    # Read parameters from yaml file
+    with open(parfile, "r") as f:
+        params = yaml.safe_load(f)
 
     comm = MPI.COMM_WORLD
 
     pop_size = 2 * comm.size  # Breeding population size
     # TODO: Write h_params to yaml
-    limits_dict = {"learning_rate": (0.0001, 0.01),
-                   "batch_size": (64, 128, 256, 512, 1024, 2048),
-                   "nsamples": (501, 1001, 2001, 3001),
-                   "kernel_size": (4, 12),
-                   "depth": (1, 6),
-                   "drop_rate": (0.0, 0.5),
-                   "stride": (1, 11),
-                   "filters_root": (2, 4, 8, 16),
-                   "activation_function": ("elu", "relu", "gelu", "leakyrelu")}
+    limits_dict = {"learning_rate": tuple(params["learning_rate"]),
+                   "batch_size": tuple(params["batch_size"]),
+                   "nsamples": tuple(params["nsamples"]),
+                   "kernel_size": tuple(params["kernel_size"]),
+                   "depth": tuple(params["depth"]),
+                   "drop_rate": tuple(params["drop_rate"]),
+                   "stride": tuple(params["stride"]),
+                   "filters_root": tuple(params["filters_root"]),
+                   "activation_function": tuple(params["activation_function"]),
+                   "parfile": (parfile)}
 
     rng = random.Random(
         comm.rank
@@ -66,11 +70,11 @@ if __name__ == "__main__":
         loss_fn=ind_loss,  # Loss function to be minimized
         propagator=propagator,  # Propagator, i.e., evolutionary operator to be used
         rng=rng,  # Separate random number generator for Propulate optimization
-        generations=generations,  # Overall number of generations
-        num_islands=num_islands,  # Number of islands
-        migration_probability=migration_probability,  # Migration probability
-        pollination=pollination,  # Whether to use pollination or migration
-        checkpoint_path=checkpoint_path,  # Checkpoint path
+        generations=params["generations"],  # Overall number of generations
+        num_islands=params["num_islands"],  # Number of islands
+        migration_probability=params["migration_probability"],  # Migration probability
+        pollination=params["pollination"] ,  # Whether to use pollination or migration
+        checkpoint_path=params["checkpoint_path"],  # Checkpoint path
         # ----- SPECIFIC FOR MULTI-RANK UCS -----
         ranks_per_worker=GPUS_PER_NODE,  # Number of ranks per (multi rank) worker
     )
@@ -84,3 +88,13 @@ if __name__ == "__main__":
         top_n=5,  # Print top-n best individuals on each island in summary.
         debug=1,  # Debug level
     )
+
+
+if __name__ == "__main__":
+    if len(sys.argv) <= 1:
+        parfile = "./propulate_parfile.yml"
+    elif len(sys.argv) > 1 and os.path.isfile(sys.argv[1]) is False:
+        msg = "The given file {} does not exist. Perhaps take the full path of the file.".format(sys.argv[1])
+        raise FileNotFoundError(msg)
+    else:
+        parfile = sys.argv[1]

@@ -812,8 +812,8 @@ def ind_loss(h_params: dict[str, int | float],
                                        method=SUBGROUP_COMM_METHOD,
                                        trace_func=log.info)
 
-    parfile = "./propulate_parfile.yml"   # TODO: Use propulate parfile ot avoid confusion
-    with open(parfile, "r") as file:
+    # Read PhaseNet parameters from parfile
+    with open(h_params["parfile"], "r") as file:
         parameters = yaml.safe_load(file)
 
     # Extract hyperparameter combination to test from input dictionary and add to parameters dictionary
@@ -845,14 +845,6 @@ def ind_loss(h_params: dict[str, int | float],
     # Set number of workers for PyTorch
     # https://github.com/pytorch/pytorch/issues/101850
     os.sched_setaffinity(0, range(os.cpu_count()))
-
-    # Make copy of parfile and rename it by filename given in parameters
-    if not os.path.exists("./parfiles"):
-        os.makedirs("./parfiles")
-    try:
-        shutil.copyfile(src=parfile, dst=f"./parfiles/{filename}.yml")
-    except shutil.SameFileError:
-        pass
 
     # Check parameters and modify e.g. metadata
     parameters = check_parameters(parameters=parameters)
@@ -903,13 +895,6 @@ def ind_loss(h_params: dict[str, int | float],
     optimizer = torch.optim.Adam(model.parameters(),
                                  lr=parameters["learning_rate"])
 
-    # Decaying learning rate
-    if isinstance(parameters["learning_rate"], dict) and parameters["learning_rate"].get("decay") is True:
-        scheduler = optim.lr_scheduler.StepLR(optimizer,
-                                              step_size=parameters["learning_rate"]["step_size"],
-                                              gamma=parameters["learning_rate"]["gamma"])
-    else:
-        scheduler = None
 
     model, train_loss, val_loss = train_model_propulate(model=model,
                                                         patience=parameters.get("patience"),
@@ -918,13 +903,13 @@ def ind_loss(h_params: dict[str, int | float],
                                                         optimizer=optimizer,
                                                         train_loader=train_loader,
                                                         validation_loader=val_loader,
-                                                        lr_scheduler=scheduler)
+                                                        lr_scheduler=None)
 
     # Return best validation loss as an individual's loss (trained so lower is better).
     dist.destroy_process_group()
 
     # If parameters for model do not fit and neither training or validation was possible
-    # These case are catched by try and error statement
+    # These case are catched by trial and error statement
     if len(val_loss) == 0:
         return 1000
     else:
