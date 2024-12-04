@@ -18,7 +18,7 @@ log_path = "torch_ckpts"
 log = logging.getLogger("propulate")  # Get logger instance.
 
 
-def main(parfile):
+def main(parfile: str):
     """
 
     """
@@ -39,7 +39,7 @@ def main(parfile):
                    "stride": tuple(params["stride"]),
                    "filters_root": tuple(params["filters_root"]),
                    "activation_function": tuple(params["activation_function"]),
-                   "parfile": (parfile)}
+                   "parfile": (parfile, parfile)}
 
     rng = random.Random(
         comm.rank

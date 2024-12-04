@@ -839,9 +839,6 @@ def ind_loss(h_params: dict[str, int | float],
         msg = f"The activation function {activation_function} is not implemented."
         raise ValueError(msg)
 
-    filename = pathlib.Path(parameters["model_name"]).stem
-    parameters["filename"] = filename
-
     # Set number of workers for PyTorch
     # https://github.com/pytorch/pytorch/issues/101850
     os.sched_setaffinity(0, range(os.cpu_count()))
