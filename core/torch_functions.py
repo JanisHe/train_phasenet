@@ -363,14 +363,14 @@ def train_model(model,
 
 
 def train_model_propulate(model,
-                         train_loader,
-                         validation_loader,
-                         loss_fn,
-                         optimizer=None,
-                         epochs=50,
-                         patience=5,
-                         lr_scheduler=None,
-                         trace_func=print):
+                          train_loader,
+                          validation_loader,
+                          loss_fn,
+                          optimizer=None,
+                          epochs=50,
+                          patience=5,
+                          lr_scheduler=None,
+                          trace_func=print):
     """
 
     """
@@ -393,20 +393,21 @@ def train_model_propulate(model,
     # Loop over each epoch to start training
     rank = dist.get_rank()
     for epoch in range(epochs):
-        trace_func(f"Start epoch {epoch + 1} for rank {rank}")
+        # trace_func(f"Start epoch {epoch + 1} for rank {rank}")
         # Train model (loop over each batch; batch_size is defined in DataLoader)
         # TODO (idea): test model with validation (compute metrics)
         train_loader.sampler.set_epoch(epoch)
         validation_loader.sampler.set_epoch(epoch)
         num_batches = len(train_loader)
-        if rank == 0:
-            # progress_bar = tqdm(total=num_batches + len(validation_loader),
-            #                     desc=f"Epoch {epoch + 1}",
-            #                     ncols=100,
-            #                     bar_format="{l_bar}{bar} [Elapsed time: {elapsed} {postfix}]")
-            progress_bar = contextlib.nullcontext()
-        else:
-            progress_bar = contextlib.nullcontext()
+        # if rank == 0:
+        progress_bar = tqdm(total=num_batches + len(validation_loader),
+                            desc=f"Epoch {epoch + 1}",
+                            ncols=100,
+                            bar_format="{l_bar}{bar} [Elapsed time: {elapsed} {postfix}]",
+                            position=rank)
+            # progress_bar = contextlib.nullcontext()
+        # else:
+        #     progress_bar = contextlib.nullcontext()
 
         with progress_bar as pbar:
             for batch_id, batch in enumerate(train_loader):
@@ -429,11 +430,11 @@ def train_model_propulate(model,
 
                 # # Update progressbar
                 # if rank == 0:
-                #     pbar.set_postfix({"loss": str(np.round(loss.item(), 4))})
-                #     pbar.update()
+                pbar.set_postfix({"loss": str(np.round(loss.item(), 4))})
+                pbar.update()
 
             # Validate the model
-            trace_func(f"Validate epoch {epoch + 1} for rank {rank}")
+            # trace_func(f"Validate epoch {epoch + 1} for rank {rank}")
             model.eval()  # Close the model for validation / evaluation
             with torch.no_grad():  # Disable gradient calculation
                 for batch in validation_loader:
@@ -447,8 +448,8 @@ def train_model_propulate(model,
                     valid_loss.append(val_loss.item())
 
                     # if rank == 0:
-                    #     pbar.set_postfix({"val_loss": str(np.round(val_loss.item(), 4))})
-                    #     pbar.update()
+                    pbar.set_postfix({"val_loss": str(np.round(val_loss.item(), 4))})
+                    pbar.update()
 
             # Determine average training and validation loss
             if len(train_loss) > 0 and len(valid_loss) > 0:
@@ -457,10 +458,10 @@ def train_model_propulate(model,
 
             # # Update progressbar
             # if rank == 0:
-            #     pbar.set_postfix(
-            #         {"loss": str(np.round(avg_train_loss[-1], 4)),
-            #          "val_loss": str(np.round(avg_valid_loss[-1], 4))}
-            #     )
+            pbar.set_postfix(
+                {"loss": str(np.round(avg_train_loss[-1], 4)),
+                 "val_loss": str(np.round(avg_valid_loss[-1], 4))}
+            )
 
         # Re-open model for next epoch
         model.train()
@@ -479,7 +480,8 @@ def train_model_propulate(model,
             early_stopping(avg_valid_loss[-1], model)
 
         if early_stopping.early_stop:
-            trace_func("Validation loss does not decrease further. Early stopping")
+            trace_func(f"Validation loss does not decrease further for rank {rank}. "
+                       f"Early stopping!")
             break
 
     return model, avg_train_loss, avg_valid_loss
