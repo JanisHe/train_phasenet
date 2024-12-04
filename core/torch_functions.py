@@ -392,24 +392,19 @@ def train_model_propulate(model,
 
     # Loop over each epoch to start training
     rank = dist.get_rank()
-    for epoch in range(epochs):
-        # trace_func(f"Start epoch {epoch + 1} for rank {rank}")
-        # Train model (loop over each batch; batch_size is defined in DataLoader)
-        # TODO (idea): test model with validation (compute metrics)
-        train_loader.sampler.set_epoch(epoch)
-        validation_loader.sampler.set_epoch(epoch)
-        num_batches = len(train_loader)
-        # if rank == 0:
-        progress_bar = tqdm(total=num_batches + len(validation_loader),
-                            desc=f"Epoch {epoch + 1}",
-                            ncols=100,
-                            bar_format="{l_bar}{bar} [Elapsed time: {elapsed} {postfix}]",
-                            position=rank)
-            # progress_bar = contextlib.nullcontext()
-        # else:
-        #     progress_bar = contextlib.nullcontext()
+    progress_bar = tqdm(total=len(train_loader) + len(validation_loader),
+                        desc=f"rank {rank} | epoch   ",
+                        ncols=100,
+                        bar_format="{l_bar}{bar} [Elapsed time: {elapsed} {postfix}]",
+                        position=rank)
 
-        with progress_bar as pbar:
+    with progress_bar as pbar:
+        for epoch in range(epochs):
+            # Train model (loop over each batch; batch_size is defined in DataLoader)
+            train_loader.sampler.set_epoch(epoch)
+            validation_loader.sampler.set_epoch(epoch)
+            pbar.set_description_str(desc=f"rank {rank} | epoch {epoch + 1}")
+
             for batch_id, batch in enumerate(train_loader):
                 # Compute prediction and loss
                 try:
@@ -434,7 +429,6 @@ def train_model_propulate(model,
                 pbar.update()
 
             # Validate the model
-            # trace_func(f"Validate epoch {epoch + 1} for rank {rank}")
             model.eval()  # Close the model for validation / evaluation
             with torch.no_grad():  # Disable gradient calculation
                 for batch in validation_loader:
@@ -456,33 +450,33 @@ def train_model_propulate(model,
                 avg_train_loss.append(sum(train_loss) / len(train_loss))
                 avg_valid_loss.append(sum(valid_loss) / len(valid_loss))
 
-            # # Update progressbar
-            # if rank == 0:
-            pbar.set_postfix(
-                {"loss": str(np.round(avg_train_loss[-1], 4)),
-                 "val_loss": str(np.round(avg_valid_loss[-1], 4))}
-            )
+                # # Update progressbar
+                # if rank == 0:
+                pbar.set_postfix(
+                    {"loss": str(np.round(avg_train_loss[-1], 4)),
+                     "val_loss": str(np.round(avg_valid_loss[-1], 4))}
+                )
 
-        # Re-open model for next epoch
-        model.train()
+            # Re-open model for next epoch
+            model.train()
 
-        # Clear training and validation loss lists for next epoch
-        train_loss = []
-        valid_loss = []
+            # Clear training and validation loss lists for next epoch
+            train_loss = []
+            valid_loss = []
 
-        # Update learning rate
-        if lr_scheduler:
-            lr_scheduler.step()
+            # Update learning rate
+            if lr_scheduler:
+                lr_scheduler.step()
 
-        # early_stopping needs the validation loss to check if it has decresed,
-        # and if it has, it will make a checkpoint of the current model
-        if len(avg_valid_loss) > 0:
-            early_stopping(avg_valid_loss[-1], model)
+            # early_stopping needs the validation loss to check if it has decresed,
+            # and if it has, it will make a checkpoint of the current model
+            if len(avg_valid_loss) > 0:
+                early_stopping(avg_valid_loss[-1], model)
 
-        if early_stopping.early_stop:
-            trace_func(f"Validation loss does not decrease further for rank {rank}. "
-                       f"Early stopping!")
-            break
+            if early_stopping.early_stop:
+                trace_func(f"Validation loss does not decrease further for rank {rank}. "
+                           f"Early stopping!")
+                break
 
     return model, avg_train_loss, avg_valid_loss
 
@@ -768,9 +762,6 @@ def get_data_loaders(comm: MPI.Comm,
     else:
         train_sampler = None
         val_sampler = None
-
-    num_workers = parameters["nworkers"]
-    print(f"Use {num_workers} workers in dataloader.")
 
     # Define generators to load data
     train_loader = DataLoader(dataset=train_generator,
