@@ -392,7 +392,7 @@ def train_model_propulate(model,
 
     # Loop over each epoch to start training
     rank = dist.get_rank()
-    progress_bar = tqdm(total=len(train_loader) + len(validation_loader),
+    progress_bar = tqdm(total=epochs,
                         desc=f"rank {rank} | epoch   ",
                         ncols=100,
                         bar_format="{l_bar}{bar} [Elapsed time: {elapsed} {postfix}]",
@@ -404,6 +404,7 @@ def train_model_propulate(model,
             train_loader.sampler.set_epoch(epoch)
             validation_loader.sampler.set_epoch(epoch)
             pbar.set_description_str(desc=f"rank {rank} | epoch {epoch + 1}")
+            pbar.update(n=1)
 
             for batch_id, batch in enumerate(train_loader):
                 # Compute prediction and loss
@@ -423,11 +424,6 @@ def train_model_propulate(model,
                 loss /= dist.get_world_size()
                 train_loss.append(loss.item())
 
-                # # Update progressbar
-                # if rank == 0:
-                pbar.set_postfix({"loss": str(np.round(loss.item(), 4))})
-                pbar.update()
-
             # Validate the model
             model.eval()  # Close the model for validation / evaluation
             with torch.no_grad():  # Disable gradient calculation
@@ -441,21 +437,10 @@ def train_model_propulate(model,
                     val_loss /= dist.get_world_size()
                     valid_loss.append(val_loss.item())
 
-                    # if rank == 0:
-                    pbar.set_postfix({"val_loss": str(np.round(val_loss.item(), 4))})
-                    pbar.update()
-
             # Determine average training and validation loss
             if len(train_loss) > 0 and len(valid_loss) > 0:
                 avg_train_loss.append(sum(train_loss) / len(train_loss))
                 avg_valid_loss.append(sum(valid_loss) / len(valid_loss))
-
-                # # Update progressbar
-                # if rank == 0:
-                pbar.set_postfix(
-                    {"loss": str(np.round(avg_train_loss[-1], 4)),
-                     "val_loss": str(np.round(avg_valid_loss[-1], 4))}
-                )
 
             # Re-open model for next epoch
             model.train()
@@ -477,6 +462,8 @@ def train_model_propulate(model,
                 trace_func(f"Validation loss does not decrease further for rank {rank}. "
                            f"Early stopping!")
                 break
+
+    pbar.close()
 
     return model, avg_train_loss, avg_valid_loss
 
@@ -838,15 +825,6 @@ def ind_loss(h_params: dict[str, int | float],
 
     # Check parameters and modify e.g. metadata
     parameters = check_parameters(parameters=parameters)
-
-    log.info("Parameter for PhaseNet:\n"
-             f"in_samples: {parameters['nsamples']}\n"
-             f"stride: {parameters['stride']}\n"
-             f"kernel_size: {parameters['kernel_size']}\n"
-             f"filters_root: {parameters['filters_root']}\n"
-             f"depth: {parameters['depth']}\n"
-             f"drop_rate: {parameters['drop_rate']}\n"
-             f"activation function: {activation_function}")
 
     # Load model
     model = sbm.VariableLengthPhaseNet(phases="PSN",
