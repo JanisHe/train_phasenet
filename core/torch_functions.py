@@ -900,7 +900,8 @@ def ind_loss(h_params: dict[str, int | float],
                                                         optimizer=optimizer,
                                                         train_loader=train_loader,
                                                         validation_loader=val_loader,
-                                                        lr_scheduler=None)
+                                                        lr_scheduler=None,
+                                                        trace_func=log.info)
 
     # Return best validation loss as an individual's loss (trained so lower is better).
     dist.destroy_process_group()
