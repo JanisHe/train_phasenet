@@ -98,3 +98,6 @@ if __name__ == "__main__":
         raise FileNotFoundError(msg)
     else:
         parfile = sys.argv[1]
+
+    # Run main function
+    main(parfile=parfile)
