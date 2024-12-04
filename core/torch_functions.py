@@ -1,14 +1,10 @@
 import os
-import shutil
-import pathlib
 import torch
 import time
 import logging
 import yaml
-import requests
 import seisbench # noqa
 import socket
-import contextlib
 # import torchvision
 
 import numpy as np
@@ -21,7 +17,6 @@ from tqdm import tqdm
 from mpi4py import MPI
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
-import torch.optim as optim
 from torch.utils.data import DataLoader
 from seisbench.util import worker_seeding # noqa
 from tqdm.auto import tqdm
