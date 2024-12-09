@@ -14,8 +14,6 @@ from core.torch_functions import ind_loss
 
 GPUS_PER_NODE: int = 4  # This example script was tested on a single node with 4 GPUs.
 SUBGROUP_COMM_METHOD = "nccl-slurm"
-log_path = "torch_ckpts"
-# TODO: Write output into file to save best parameters
 log = logging.getLogger("propulate")  # Get logger instance.
 
 
@@ -49,7 +47,7 @@ def main(parfile: str):
     # Set up separate logger for Propulate optimization.
     set_logger_config(
         level=logging.INFO,  # Logging level
-        log_file=f"{log_path}/{pathlib.Path(__file__).stem}.log",  # Logging path
+        log_file=f"logs/{pathlib.Path(parfile).stem}.log",  # Logging path
         log_to_stdout=True,  # Print log on stdout.
         log_rank=False,  # Do not prepend MPI rank to logging messages.
         colors=True,  # Use colors.
