@@ -387,78 +387,77 @@ def train_model_propulate(model,
 
     # Loop over each epoch to start training
     rank = dist.get_rank()
-    # progress_bar = tqdm(total=epochs,
-    #                     desc=f"rank {rank} | epoch   ",
-    #                     ncols=100,
-    #                     bar_format="{l_bar}{bar} [Elapsed time: {elapsed} {postfix}]",
-    #                     position=rank)
+    progress_bar = tqdm(total=epochs,
+                        desc=f"rank {rank} | epoch   ",
+                        ncols=100,
+                        bar_format="{l_bar}{bar} [Elapsed time: {elapsed} {postfix}]",
+                        position=rank)
 
-    # with progress_bar as pbar:
-    for epoch in range(epochs):
-        # Train model (loop over each batch; batch_size is defined in DataLoader)
-        train_loader.sampler.set_epoch(epoch)
-        validation_loader.sampler.set_epoch(epoch)
-        # pbar.set_description_str(desc=f"rank {rank} | epoch {epoch + 1}")
-        # pbar.update(n=1)
+    with progress_bar as pbar:
+        for epoch in range(epochs):
+            # Train model (loop over each batch; batch_size is defined in DataLoader)
+            train_loader.sampler.set_epoch(epoch)
+            validation_loader.sampler.set_epoch(epoch)
+            pbar.set_description_str(desc=f"rank {rank} | epoch {epoch + 1}")
 
-        for batch_id, batch in enumerate(train_loader):
-            # Compute prediction and loss
-            try:
-                pred = model(batch["X"].to(model.device))
-            except RuntimeError:
-                continue
-            loss = loss_fn(y_pred=pred, y_true=batch["y"].to(model.device))
-
-            # Do backpropagation
-            optimizer.zero_grad()  # clear the gradients of all optimized variables
-            loss.backward()  # backward pass: compute gradient of the loss with respect to model parameters
-            optimizer.step()  # perform a single optimization step (parameter update)
-
-            # Compute loss for each batch and write loss to predefined lists
-            dist.all_reduce(loss)
-            loss /= dist.get_world_size()
-            train_loss.append(loss.item())
-
-        # Validate the model
-        model.eval()  # Close the model for validation / evaluation
-        with torch.no_grad():  # Disable gradient calculation
-            for batch in validation_loader:
+            for batch_id, batch in enumerate(train_loader):
+                # Compute prediction and loss
                 try:
                     pred = model(batch["X"].to(model.device))
                 except RuntimeError:
                     continue
-                val_loss = loss_fn(pred, batch["y"].to(model.device))
-                dist.all_reduce(val_loss)
-                val_loss /= dist.get_world_size()
-                valid_loss.append(val_loss.item())
+                loss = loss_fn(y_pred=pred, y_true=batch["y"].to(model.device))
 
-        # Determine average training and validation loss
-        if len(train_loss) > 0 and len(valid_loss) > 0:
-            avg_train_loss.append(sum(train_loss) / len(train_loss))
-            avg_valid_loss.append(sum(valid_loss) / len(valid_loss))
+                # Do backpropagation
+                optimizer.zero_grad()  # clear the gradients of all optimized variables
+                loss.backward()  # backward pass: compute gradient of the loss with respect to model parameters
+                optimizer.step()  # perform a single optimization step (parameter update)
 
-        # Re-open model for next epoch
-        model.train()
+                # Compute loss for each batch and write loss to predefined lists
+                dist.all_reduce(loss)
+                loss /= dist.get_world_size()
+                train_loss.append(loss.item())
 
-        # Clear training and validation loss lists for next epoch
-        train_loss = []
-        valid_loss = []
+            # Validate the model
+            model.eval()  # Close the model for validation / evaluation
+            with torch.no_grad():  # Disable gradient calculation
+                for batch in validation_loader:
+                    try:
+                        pred = model(batch["X"].to(model.device))
+                    except RuntimeError:
+                        continue
+                    val_loss = loss_fn(pred, batch["y"].to(model.device))
+                    dist.all_reduce(val_loss)
+                    val_loss /= dist.get_world_size()
+                    valid_loss.append(val_loss.item())
 
-        # Update learning rate
-        if lr_scheduler:
-            lr_scheduler.step()
+            # Determine average training and validation loss
+            if len(train_loss) > 0 and len(valid_loss) > 0:
+                avg_train_loss.append(sum(train_loss) / len(train_loss))
+                avg_valid_loss.append(sum(valid_loss) / len(valid_loss))
 
-        # early_stopping needs the validation loss to check if it has decresed,
-        # and if it has, it will make a checkpoint of the current model
-        if len(avg_valid_loss) > 0:
-            early_stopping(avg_valid_loss[-1], model)
+            # Re-open model for next epoch
+            model.train()
 
-        if early_stopping.early_stop:
-            trace_func(f"Validation loss does not decrease further for rank {rank}. "
-                       f"Early stopping!")
-            break
+            # Clear training and validation loss lists for next epoch
+            train_loss = []
+            valid_loss = []
 
-    # pbar.close()
+            # Update learning rate
+            if lr_scheduler:
+                lr_scheduler.step()
+
+            # early_stopping needs the validation loss to check if it has decresed,
+            # and if it has, it will make a checkpoint of the current model
+            if len(avg_valid_loss) > 0:
+                early_stopping(avg_valid_loss[-1], model)
+
+            if early_stopping.early_stop:
+                trace_func(f"Validation loss does not decrease further for rank {rank}. "
+                           f"Early stopping!")
+                break
+
+    pbar.close()
 
     return model, avg_train_loss, avg_valid_loss
 
