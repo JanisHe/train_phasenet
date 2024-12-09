@@ -461,109 +461,109 @@ def train_model_propulate(model,
 
     # pbar.close()
 
-    return model, avg_train_loss, avg_valid_loss
+    return avg_train_loss, avg_valid_loss
 
 
-def torch_process_group_init(comm: MPI.Comm,
-                             method: str,
-                             trace_func=print) -> None:
-    """
-    Create the torch process group.
-
-    Parameters
-    ----------
-    comm : MPI.Comm
-        Communciator used for training the model in data parallel fashion
-    method : str
-        The method to use to initialize the process group.
-        Options: [``nccl-slurm``, ``nccl-openmpi``, ``gloo``]
-        If CUDA is not available, ``gloo`` is automatically chosen for the method.
-    """
-    global _DATA_PARALLEL_GROUP
-    global _DATA_PARALLEL_ROOT
-
-    comm_rank, comm_size = comm.rank, comm.size
-
-    # Get master address and port
-    port = 29500
-
-    if comm_size == 1:
-        return
-    # OLD
-    master_address = os.environ["MASTER_ADDR"]
-    # Each rank needs to get the hostname of rank 0 of its group.
-    # master_address = comm.bcast(str(master_address), root=0)
-
-    # Save environment variables.
-    # os.environ["MASTER_ADDR"] = master_address
-    # Use the default PyTorch port.
-    os.environ["MASTER_PORT"] = str(port)
-
-    if not torch.cuda.is_available():
-        method = "gloo"
-        trace_func("No CUDA devices found: Falling back to gloo.")
-    else:
-        trace_func(f"CUDA_VISIBLE_DEVICES: {os.environ['CUDA_VISIBLE_DEVICES']}")
-        num_cuda_devices = torch.cuda.device_count()
-        device_number = MPI.COMM_WORLD.rank % num_cuda_devices
-        trace_func(f"device count: {num_cuda_devices}, device number: {device_number}")
-        torch.cuda.set_device(device_number)
-
-    time.sleep(0.001 * comm_rank)  # Avoid DDOS'ing rank 0.
-    if method == "nccl-openmpi":  # Use NCCL with OpenMPI.
-        dist.init_process_group(
-            backend="nccl",
-            rank=comm_rank,
-            world_size=comm_size,
-        )
-
-    elif method == "nccl-slurm":  # Use NCCL with a TCP store.
-        wireup_store = dist.TCPStore(
-            host_name=master_address,
-            port=port,
-            world_size=comm_size,
-            is_master=(comm_rank == 0),
-            timeout=dt.timedelta(seconds=60),
-        )
-        dist.init_process_group(
-            backend="nccl",
-            store=wireup_store,
-            world_size=comm_size,
-            rank=comm_rank,
-        )
-    elif method == "gloo":  # Use gloo.
-        wireup_store = dist.TCPStore(
-            host_name=master_address,
-            port=port,
-            world_size=comm_size,
-            is_master=(comm_rank == 0),
-            timeout=dt.timedelta(seconds=60),
-        )
-        dist.init_process_group(
-            backend="gloo",
-            store=wireup_store,
-            world_size=comm_size,
-            rank=comm_rank,
-        )
-    else:
-        raise NotImplementedError(
-            f"Given 'method' ({method}) not in [nccl-openmpi, nccl-slurm, gloo]!"
-        )
-
-    # Call a barrier here in order for sharp to use the default comm.
-    if dist.is_initialized():
-        dist.barrier()
-        disttest = torch.ones(1)
-        if method != "gloo":
-            disttest = disttest.cuda()
-
-        dist.all_reduce(disttest)
-        assert disttest[0] == comm_size, "Failed test of dist!"
-    else:
-        disttest = None
-
-    trace_func(f"Finish subgroup torch.dist init: world size: {dist.get_world_size()}, "
-               f"rank: {dist.get_rank()}")
+# def torch_process_group_init(comm: MPI.Comm,
+#                              method: str,
+#                              trace_func=print) -> None:
+#     """
+#     Create the torch process group.
+#
+#     Parameters
+#     ----------
+#     comm : MPI.Comm
+#         Communciator used for training the model in data parallel fashion
+#     method : str
+#         The method to use to initialize the process group.
+#         Options: [``nccl-slurm``, ``nccl-openmpi``, ``gloo``]
+#         If CUDA is not available, ``gloo`` is automatically chosen for the method.
+#     """
+#     global _DATA_PARALLEL_GROUP
+#     global _DATA_PARALLEL_ROOT
+#
+#     comm_rank, comm_size = comm.rank, comm.size
+#
+#     # Get master address and port
+#     port = 29500
+#
+#     if comm_size == 1:
+#         return
+#     # OLD
+#     master_address = os.environ["MASTER_ADDR"]
+#     # Each rank needs to get the hostname of rank 0 of its group.
+#     # master_address = comm.bcast(str(master_address), root=0)
+#
+#     # Save environment variables.
+#     # os.environ["MASTER_ADDR"] = master_address
+#     # Use the default PyTorch port.
+#     os.environ["MASTER_PORT"] = str(port)
+#
+#     if not torch.cuda.is_available():
+#         method = "gloo"
+#         trace_func("No CUDA devices found: Falling back to gloo.")
+#     else:
+#         trace_func(f"CUDA_VISIBLE_DEVICES: {os.environ['CUDA_VISIBLE_DEVICES']}")
+#         num_cuda_devices = torch.cuda.device_count()
+#         device_number = MPI.COMM_WORLD.rank % num_cuda_devices
+#         trace_func(f"device count: {num_cuda_devices}, device number: {device_number}")
+#         torch.cuda.set_device(device_number)
+#
+#     time.sleep(0.001 * comm_rank)  # Avoid DDOS'ing rank 0.
+#     if method == "nccl-openmpi":  # Use NCCL with OpenMPI.
+#         dist.init_process_group(
+#             backend="nccl",
+#             rank=comm_rank,
+#             world_size=comm_size,
+#         )
+#
+#     elif method == "nccl-slurm":  # Use NCCL with a TCP store.
+#         wireup_store = dist.TCPStore(
+#             host_name=master_address,
+#             port=port,
+#             world_size=comm_size,
+#             is_master=(comm_rank == 0),
+#             timeout=dt.timedelta(seconds=60),
+#         )
+#         dist.init_process_group(
+#             backend="nccl",
+#             store=wireup_store,
+#             world_size=comm_size,
+#             rank=comm_rank,
+#         )
+#     elif method == "gloo":  # Use gloo.
+#         wireup_store = dist.TCPStore(
+#             host_name=master_address,
+#             port=port,
+#             world_size=comm_size,
+#             is_master=(comm_rank == 0),
+#             timeout=dt.timedelta(seconds=60),
+#         )
+#         dist.init_process_group(
+#             backend="gloo",
+#             store=wireup_store,
+#             world_size=comm_size,
+#             rank=comm_rank,
+#         )
+#     else:
+#         raise NotImplementedError(
+#             f"Given 'method' ({method}) not in [nccl-openmpi, nccl-slurm, gloo]!"
+#         )
+#
+#     # Call a barrier here in order for sharp to use the default comm.
+#     if dist.is_initialized():
+#         dist.barrier()
+#         disttest = torch.ones(1)
+#         if method != "gloo":
+#             disttest = disttest.cuda()
+#
+#         dist.all_reduce(disttest)
+#         assert disttest[0] == comm_size, "Failed test of dist!"
+#     else:
+#         disttest = None
+#
+#     trace_func(f"Finish subgroup torch.dist init: world size: {dist.get_world_size()}, "
+#                f"rank: {dist.get_rank()}")
 
 
 def torch_process_group_init_propulate(subgroup_comm: MPI.Comm,
@@ -860,15 +860,15 @@ def ind_loss(h_params: dict[str, int | float],
                                  lr=parameters["learning_rate"])
 
 
-    model, train_loss, val_loss = train_model_propulate(model=model,
-                                                        patience=parameters.get("patience"),
-                                                        epochs=parameters["epochs"],
-                                                        loss_fn=loss_fn,
-                                                        optimizer=optimizer,
-                                                        train_loader=train_loader,
-                                                        validation_loader=val_loader,
-                                                        lr_scheduler=None,
-                                                        trace_func=log.info)
+    train_loss, val_loss = train_model_propulate(model=model,
+                                                 patience=parameters.get("patience"),
+                                                 epochs=parameters["epochs"],
+                                                 loss_fn=loss_fn,
+                                                 optimizer=optimizer,
+                                                 train_loader=train_loader,
+                                                 validation_loader=val_loader,
+                                                 lr_scheduler=None,
+                                                 trace_func=log.info)
 
     # Return best validation loss as an individual's loss (trained so lower is better).
     dist.destroy_process_group()
