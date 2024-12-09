@@ -15,6 +15,7 @@ from core.torch_functions import ind_loss
 GPUS_PER_NODE: int = 4  # This example script was tested on a single node with 4 GPUs.
 SUBGROUP_COMM_METHOD = "nccl-slurm"
 log_path = "torch_ckpts"
+# TODO: Write output into file to save best parameters
 log = logging.getLogger("propulate")  # Get logger instance.
 
 
@@ -76,7 +77,7 @@ def main(parfile: str):
         pollination=params["pollination"] ,  # Whether to use pollination or migration
         checkpoint_path=params["checkpoint_path"],  # Checkpoint path
         # ----- SPECIFIC FOR MULTI-RANK UCS -----
-        ranks_per_worker=GPUS_PER_NODE,  # Number of ranks per (multi rank) worker
+        ranks_per_worker=2  # GPUS_PER_NODE,  # Number of ranks per (multi rank) worker
     )
 
     # Run actual optimization.
