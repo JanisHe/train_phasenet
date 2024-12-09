@@ -379,11 +379,11 @@ def train_model_propulate(model,
     if not optimizer:
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
-    # # Initialize early stopping class
-    # early_stopping = EarlyStopping(patience=patience,
-    #                                verbose=False,
-    #                                path_checkpoint=None,
-    #                                trace_func=trace_func)
+    # Initialize early stopping class
+    early_stopping = EarlyStopping(patience=patience,
+                                   verbose=False,
+                                   path_checkpoint=None,
+                                   trace_func=trace_func)
 
     # Loop over each epoch to start training
     rank = dist.get_rank()
@@ -451,13 +451,13 @@ def train_model_propulate(model,
 
         # early_stopping needs the validation loss to check if it has decresed,
         # and if it has, it will make a checkpoint of the current model
-        # if len(avg_valid_loss) > 0:
-        #     early_stopping(avg_valid_loss[-1], model)
+        if len(avg_valid_loss) > 0:
+            early_stopping(avg_valid_loss[-1], model)
 
-        # if early_stopping.early_stop:
-        #     trace_func(f"Validation loss does not decrease further for rank {rank}. "
-        #                f"Early stopping!")
-        #     break
+        if early_stopping.early_stop:
+            trace_func(f"Validation loss does not decrease further for rank {rank}. "
+                       f"Early stopping!")
+            break
 
     # pbar.close()
 
