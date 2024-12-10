@@ -803,6 +803,7 @@ def ind_loss(h_params: dict[str, int | float],
     parameters["filters_root"] = h_params["filters_root"]
     parameters["depth"] = h_params["depth"]
     parameters["drop_rate"] = h_params["drop_rate"]
+    parameters["activation_function"] = h_params["activation_function"]
     activation_function = h_params["activation_function"]
 
     if activation_function.lower() == "elu":
@@ -821,7 +822,8 @@ def ind_loss(h_params: dict[str, int | float],
     rank = dist.get_rank()
     print_params = copy.copy(parameters)
     print_params.pop("datasets")
-    log.info(msg=f"rank: {rank} | {parameters}")
+    print_param
+    log.info(msg=f"rank: {rank} | {print_params}")
 
     # Set number of workers for PyTorch
     # https://github.com/pytorch/pytorch/issues/101850
