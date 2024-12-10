@@ -821,7 +821,7 @@ def ind_loss(h_params: dict[str, int | float],
     rank = dist.get_rank()
     print_params = copy.copy(parameters)
     print_params.pop("datasets")
-    log.info(msg=f"rank: {rank} | {parameters})
+    log.info(msg=f"rank: {rank} | {parameters}")
 
     # Set number of workers for PyTorch
     # https://github.com/pytorch/pytorch/issues/101850
