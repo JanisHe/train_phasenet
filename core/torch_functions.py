@@ -405,8 +405,8 @@ def train_model_propulate(model,
             # Compute prediction and loss
             try:
                 pred = model(batch["X"].to(model.device))
-            except RuntimeError:
-                continue
+            except RuntimeError:  # return empty lists for train and validation loss since parameters do mnot match
+                return [], []
             loss = loss_fn(y_pred=pred, y_true=batch["y"].to(model.device))
 
             # Do backpropagation
@@ -594,7 +594,8 @@ def torch_process_group_init_propulate(subgroup_comm: MPI.Comm,
 
     if comm_size == 1:
         return
-    master_address = f"{socket.gethostname()[:-7]}i"  # THIS IS THE NEW BIT! IT WILL PULL OUT THE rank-0 NODE NAME
+    # master_address = f"{socket.gethostname()[:-7]}i"  # THIS IS THE NEW BIT! IT WILL PULL OUT THE rank-0 NODE NAME
+    master_address = f"{socket.gethostname()}"
     # Each multi-rank worker rank needs to get the hostname of rank 0 of its subgroup.
     master_address = subgroup_comm.bcast(str(master_address), root=0)
 
@@ -814,6 +815,10 @@ def ind_loss(h_params: dict[str, int | float],
     else:
         msg = f"The activation function {activation_function} is not implemented."
         raise ValueError(msg)
+
+    # print loaded parameters
+    rank = dist.get_rank()
+    log.info(msg=str(parameters))
 
     # Set number of workers for PyTorch
     # https://github.com/pytorch/pytorch/issues/101850
