@@ -5,6 +5,7 @@ import logging
 import yaml
 import seisbench # noqa
 import socket
+import copy
 # import torchvision
 
 import numpy as np
@@ -818,7 +819,9 @@ def ind_loss(h_params: dict[str, int | float],
 
     # print loaded parameters
     rank = dist.get_rank()
-    log.info(msg=str(parameters))
+    print_params = copy.copy(parameters)
+    print_params.pop("datasets")
+    log.info(msg=f"rank: {rank} | {parameters})
 
     # Set number of workers for PyTorch
     # https://github.com/pytorch/pytorch/issues/101850
