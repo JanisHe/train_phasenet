@@ -698,6 +698,7 @@ def ind_loss(h_params: dict[str, int | float],
     parameters["nsamples"] = h_params["nsamples"]
     parameters["stride"] = h_params["stride"]
     parameters["kernel_size"] = h_params["kernel_size"]
+    parameters["filter_factor"] = h_params["filter_factor"]
     parameters["filters_root"] = h_params["filters_root"]
     parameters["depth"] = h_params["depth"]
     parameters["drop_rate"] = h_params["drop_rate"]
@@ -734,6 +735,7 @@ def ind_loss(h_params: dict[str, int | float],
                                        in_samples=parameters["nsamples"],
                                        norm="peak",
                                        stride=parameters["stride"],
+                                       filter_factor=parameters["filter_factor"],
                                        kernel_size=parameters["kernel_size"],
                                        filters_root=parameters["filters_root"],
                                        depth=parameters["depth"],

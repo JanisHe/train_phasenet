@@ -33,6 +33,7 @@ def main(parfile: str):
                    "batch_size": tuple(params["batch_size"]),
                    "nsamples": tuple(params["nsamples"]),
                    "kernel_size": tuple(params["kernel_size"]),
+                   "filter_factor": tuple(params["filter_factor"]),
                    "depth": tuple(params["depth"]),
                    "drop_rate": tuple(params["drop_rate"]),
                    "stride": tuple(params["stride"]),
