@@ -81,7 +81,7 @@ def main(parfile: str):
         pollination=params["pollination"] ,  # Whether to use pollination or migration
         checkpoint_path=params["checkpoint_path"],  # Checkpoint path
         # ----- SPECIFIC FOR MULTI-RANK UCS -----
-        ranks_per_worker=2  # GPUS_PER_NODE,  # Number of ranks per (multi rank) worker
+        ranks_per_worker=params["ranks_per_worker"]  # GPUS_PER_NODE,  # Number of ranks per (multi rank) worker
     )
 
     # Run actual optimization.
