@@ -10,6 +10,7 @@ from mpi4py import MPI
 from propulate import Islands
 from propulate.utils import get_default_propagator, set_logger_config
 from core.torch_functions import ind_loss
+from core.utils import check_propulate_limits
 
 
 GPUS_PER_NODE: int = 4  # This example script was tested on a single node with 4 GPUs.
@@ -43,7 +44,7 @@ def main(parfile: str):
 
     # Check whether one parameter in limits_dict has only a length of one
     # If yes, the same value is appended to the tuple
-
+    limits_dict = check_propulate_limits(params=limits_dict)
 
     rng = random.Random(
         comm.rank
