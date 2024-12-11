@@ -39,7 +39,11 @@ def main(parfile: str):
                    "stride": tuple(params["stride"]),
                    "filters_root": tuple(params["filters_root"]),
                    "activation_function": tuple(params["activation_function"]),
-                   "parfile": (parfile, parfile)}
+                   "parfile": parfile}
+
+    # Check whether one parameter in limits_dict has only a length of one
+    # If yes, the same value is appended to the tuple
+
 
     rng = random.Random(
         comm.rank

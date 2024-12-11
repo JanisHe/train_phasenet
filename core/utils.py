@@ -14,6 +14,7 @@ import seisbench.data as sbd # noqa
 from torch.utils.data import DataLoader
 import seisbench.generate as sbg # noqa
 from seisbench.util import worker_seeding # noqa
+from seisbench.models.phasenet import PhaseNet # noqa
 from obspy.signal.trigger import trigger_onset
 
 
@@ -414,7 +415,7 @@ def map_arrivals(dataframe: pd.DataFrame,
 
 
 def get_sb_phase_value(phase: str,
-                       phasennet_model: seisbench.models.phasenet.PhaseNet) -> int:
+                       phasennet_model: PhaseNet) -> int:
     """
     Reads phases labels from seisbench model and returns the index of the phase
     """
@@ -708,3 +709,45 @@ def residual_histogram(residuals,
 #         fig.savefig(fname=os.path.join(".", "metrics", f"{filename}_residuals.png"), dpi=250)
 #
 #     return metrics_p, metrics_s
+
+
+def check_propulate_limits(params: dict) -> dict:
+    """
+    Check whether one parameter in dictionary params has only a length of one.
+    If yes, the same value is appended to the tuple. If only one parameter is in params,
+    this parameters is not modified by propulate to find the best hyperparameters.
+
+    This function is necessary to run propulate sucessfull.
+    """
+    for key, value in params.items():
+        if isinstance(value, tuple):
+            if len(value) == 1:
+                params[key] = tuple([value[0], value[0]])
+        else:
+            params[key] = tuple([value, value])
+
+    return params
+
+
+if __name__ == "__main__":
+    import yaml
+
+    parfile = "../propulate_parfile.yml"
+    with open(parfile, "r") as f:
+        params = yaml.safe_load(f)
+
+    limits_dict = {"learning_rate": tuple(params["learning_rate"]),
+                   "batch_size": tuple(params["batch_size"]),
+                   "nsamples": tuple(params["nsamples"]),
+                   "kernel_size": tuple(params["kernel_size"]),
+                   "filter_factor": tuple(params["filter_factor"]),
+                   "depth": tuple(params["depth"]),
+                   "drop_rate": tuple(params["drop_rate"]),
+                   "stride": tuple(params["stride"]),
+                   "filters_root": tuple(params["filters_root"]),
+                   "activation_function": tuple(params["activation_function"]),
+                   "parfile": parfile}
+
+    l = check_propulate_limits(limits_dict)
+
+    print(l)
