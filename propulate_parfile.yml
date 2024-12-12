@@ -5,6 +5,7 @@ sigma: 10            # Half-width of labeler
 generations: 10
 num_islands: 1      # Number of islands
 migration_probability: 0.9   # Migration probability
+ranks_per_worker: 2  # Number of ranks per (multi rank) worker
 pollination: True  # Whether to use pollination or migration
 datasets:
     - insheim: /scratch/gpi/seis/jheuel/ai_datasets/insheim
@@ -25,6 +26,8 @@ batch_size:
     - 512
     - 1024
     - 2048
+filter_factor:
+    - 1
 kernel_size:
     - 4
     - 12
