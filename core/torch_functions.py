@@ -812,7 +812,7 @@ def ind_loss(h_params: dict[str, int | float],
 
     # Add parameters for testing each model
     parameters["true_pick_prob"] = 0.5
-    parameters["residual"] = 30
+    parameters["arrival_residual"] = 30
     parameters["win_len_factor"] = 10
 
     if activation_function.lower() == "elu":
@@ -895,7 +895,7 @@ def ind_loss(h_params: dict[str, int | float],
     # Instead of return the average loss value, the model is evaluated and precision, recall and
     # F1-score are determined
     if model:
-        metrics_p, metrics_s = test_model(model=model,
+        metrics_p, metrics_s = test_model(model=model.module,  # Since model is wrapped with DDP
                                           test_dataset=test,
                                           **parameters)
         avg_recall = np.average([metrics_p.recall, metrics_s.recall])
