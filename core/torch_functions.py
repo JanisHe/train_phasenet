@@ -5,11 +5,13 @@ import logging
 import yaml
 import seisbench # noqa
 import socket
+import pathlib
 import copy
 # import torchvision
 
 import numpy as np
 
+import matplotlib.pyplot as plt
 import datetime as dt
 import seisbench.data as sbd  # noqa
 import seisbench.models as sbm # noqa
@@ -23,7 +25,8 @@ from seisbench.util import worker_seeding # noqa
 from tqdm.auto import tqdm
 import torch.utils.data.distributed as datadist
 
-from core.utils import read_datasets, add_fake_events, get_phase_dict, check_parameters, is_nan
+from core.utils import (read_datasets, add_fake_events, get_phase_dict, check_parameters, is_nan,
+                        get_picks, residual_histogram)
 
 
 log = logging.getLogger("propulate")  # Get logger instance.
@@ -357,6 +360,107 @@ def train_model(model,
 
     return model, avg_train_loss, avg_valid_loss
 
+def add_metrics(axes,
+                metrics: Metrics):
+    # TODO: Add mean and standard deviation
+    textstr = (f"Precision: {np.round(metrics.precision, 2)}\n"
+               f"Recall: {np.round(metrics.recall, 2)}\n"
+               f"F1 score: {np.round(metrics.f1_score, 2)}")
+    props = dict(boxstyle='round', facecolor='white', alpha=0.5)
+    axes.text(x=0.05,
+              y=0.95,
+              s=textstr,
+              transform=axes.transAxes,
+              fontsize=10,
+              verticalalignment='top',
+              bbox=props)
+
+
+def test_model(model: seisbench.models.phasenet.PhaseNet,
+               test_dataset: seisbench.data.base.MultiWaveformDataset,
+               plot_residual_histogram: bool = False,
+               **parameters):
+    """
+
+    """
+    test_generator = sbg.GenericGenerator(test_dataset)
+
+    samples_before = int(parameters["nsamples"] / 3)
+    augmentations = [
+        sbg.WindowAroundSample(list(get_phase_dict().keys()),
+                               samples_before=samples_before,
+                               windowlen=parameters["nsamples"],
+                               selection="first",    # XXX Problem with multi events
+                               strategy="move"),
+        sbg.Normalize(demean_axis=-1,
+                      amp_norm_axis=-1,
+                      amp_norm_type=model.norm),
+        sbg.ChangeDtype(np.float32),
+        sbg.ProbabilisticLabeller(label_columns=get_phase_dict(),
+                                  sigma=parameters["sigma"],
+                                  dim=0,
+                                  model_labels=model.labels,
+                                  noise_column=True)
+    ]
+    test_generator.add_augmentations(augmentations)
+    test_loader = DataLoader(dataset=test_generator,
+                             batch_size=128,
+                             shuffle=False,
+                             num_workers=parameters["nworkers"],
+                             worker_init_fn=worker_seeding,
+                             drop_last=False)
+
+    picks_and_probs = get_picks(model=model,
+                                dataloader=test_loader,
+                                sigma=parameters["sigma"],
+                                win_len_factor=parameters["win_len_factor"],
+                                threshold=parameters["true_pick_prob"],
+                                samples_before=samples_before)
+
+    # Evaluate metrics for P and S
+    # 1. Determine true positives (tp), false positives (fp), and false negatives (fn) for P and S phases
+    metrics_p = Metrics(predictions=picks_and_probs["pred_P"],
+                        true_pick_prob=parameters["true_pick_prob"],
+                        arrival_residual=parameters["arrival_residual"])
+
+    metrics_s = Metrics(predictions=picks_and_probs["pred_S"],
+                        true_pick_prob=parameters["true_pick_prob"],
+                        arrival_residual=parameters["arrival_residual"])
+
+    # 2. Plot time arrival residuals for P and S
+    if plot_residual_histogram is True:
+        # Get filename from parameters
+        filename = parameters.get("filename")
+        if not filename:
+            filename = pathlib.Path(parameters["model_name"]).stem
+
+        # Create directory if it does not exist
+        if not os.path.exists(os.path.join(".", "metrics")):
+            os.makedirs(os.path.join(".", "metrics"))
+
+        # Plot figure
+        fig = plt.figure(figsize=(16, 8))
+        ax1 = plt.subplot(121)
+        ax2 = plt.subplot(122, sharey=ax1)
+        residual_histogram(residuals=picks_and_probs["residual_P"] / parameters["sampling_rate"],
+                           axes=ax1,
+                           xlim=(-10 * parameters["sigma"] / parameters["sampling_rate"],
+                                 10 * parameters["sigma"] / parameters["sampling_rate"]))
+        residual_histogram(residuals=picks_and_probs["residual_S"] / parameters["sampling_rate"],
+                           axes=ax2,
+                           xlim=(-10 * parameters["sigma"] / parameters["sampling_rate"],
+                                 10 * parameters["sigma"] / parameters["sampling_rate"]))
+        add_metrics(ax1, metrics=metrics_p)
+        add_metrics(ax2, metrics=metrics_s)
+        ax1.set_title("P residual")
+        ax2.set_title("S residual")
+        ax1.set_xlabel("$t_{pred}$ - $t_{true}$ (s)")
+        ax2.set_xlabel("$t_{pred}$ - $t_{true}$ (s)")
+        ax1.set_ylabel("Counts")
+        fig.savefig(fname=os.path.join(".", "metrics", f"{filename}_residuals.png"), dpi=250)
+
+    return metrics_p, metrics_s
+
 
 def train_model_propulate(model,
                           train_loader,
@@ -387,7 +491,7 @@ def train_model_propulate(model,
                                    trace_func=trace_func)
 
     # Loop over each epoch to start training
-    rank = dist.get_rank()
+    # rank = dist.get_rank()
     # progress_bar = tqdm(total=epochs,
     #                     desc=f"rank {rank} | epoch   ",
     #                     ncols=100,
@@ -462,7 +566,7 @@ def train_model_propulate(model,
 
     # pbar.close()
 
-    return avg_train_loss, avg_valid_loss
+    return model, avg_train_loss, avg_valid_loss
 
 
 def torch_process_group_init_propulate(subgroup_comm: MPI.Comm,
@@ -586,6 +690,7 @@ def get_data_loaders(comm: MPI.Comm,
                         percentage=parameters["add_fake_events"])
 
     # Split dataset in train, dev (validation) and test
+    # TODO: Test dataset is not necessary for propulate
     train, validation, test = seisbench_dataset.train_dev_test()
 
     # Define generators for training and validation
@@ -705,6 +810,11 @@ def ind_loss(h_params: dict[str, int | float],
     parameters["activation_function"] = h_params["activation_function"]
     activation_function = h_params["activation_function"]
 
+    # Add parameters for testing each model
+    parameters["true_pick_prob"] = 0.5
+    parameters["residual"] = 30
+    parameters["win_len_factor"] = 10
+
     if activation_function.lower() == "elu":
         activation_function = torch.nn.ELU()
     elif activation_function.lower() == "relu":
@@ -769,26 +879,36 @@ def ind_loss(h_params: dict[str, int | float],
                                  lr=parameters["learning_rate"])
 
 
-    train_loss, val_loss = train_model_propulate(model=model,
-                                                 patience=parameters.get("patience"),
-                                                 epochs=parameters["epochs"],
-                                                 loss_fn=loss_fn,
-                                                 optimizer=optimizer,
-                                                 train_loader=train_loader,
-                                                 validation_loader=val_loader,
-                                                 lr_scheduler=None,
-                                                 trace_func=log.info)
+    model, train_loss, val_loss = train_model_propulate(model=model,
+                                                        patience=parameters.get("patience"),
+                                                        epochs=parameters["epochs"],
+                                                        loss_fn=loss_fn,
+                                                        optimizer=optimizer,
+                                                        train_loader=train_loader,
+                                                        validation_loader=val_loader,
+                                                        lr_scheduler=None,
+                                                        trace_func=log.info)
 
     # Return best validation loss as an individual's loss (trained so lower is better).
     dist.destroy_process_group()
 
+    # Instead of return the average loss value, the model is evaluated and precision, recall and
+    # F1-score are determined
+    metrics_p, metrics_s = test_model(model=model,
+                                      test_dataset=test,
+                                      **parameters)
+    avg_recall = np.average([metrics_p.recall, metrics_s.recall])
+
+
     # If parameters for model do not fit and neither training or validation was possible
     # These case are catched by trial and error statement
-    if len(val_loss) == 0:
-        return 1000
-    else:
-        min_loss = min(val_loss)
+    # if len(val_loss) == 0:
+    #     return 1000
+    # else:
+    #     min_loss = min(val_loss)
+    #
+    # if is_nan(min_loss):
+    #     return 1000
+    # return min_loss
 
-    if is_nan(min_loss):
-        return 1000
-    return min_loss
+    return 1 - avg_recall   # Since loss is minimized, 1 - avg_recall is needed

@@ -16,8 +16,8 @@ from torch.nn.functional import dropout
 from torch.utils.data import DataLoader
 import torch.optim as optim
 
-from torch_functions import train_model, VectorCrossEntropyLoss, FocalLoss
-from utils import check_parameters, read_datasets, add_fake_events, get_phase_dict, test_model
+from torch_functions import train_model, VectorCrossEntropyLoss, test_model
+from utils import check_parameters, read_datasets, add_fake_events, get_phase_dict
 
 
 def main(parfile):
@@ -147,7 +147,9 @@ def main(parfile):
     # Set up loss function from parameters
     if parameters.get("loss_function"):
         if parameters.get("loss_function").lower() == "focal_loss":
-            loss_fn = FocalLoss()
+            # loss_fn = FocalLoss()
+            msg = "Focal loss is at the moment uncommented in torch_functions."
+            raise ValueError(msg)
         elif parameters.get("loss_function").lower() == "cross_entropy":
             loss_fn = VectorCrossEntropyLoss()
         else:
