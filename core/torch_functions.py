@@ -511,7 +511,7 @@ def train_model_propulate(model,
             try:
                 pred = model(batch["X"].to(model.device))
             except RuntimeError:  # return empty lists for train and validation loss since parameters do mnot match
-                return [], []
+                return None, [], []
             loss = loss_fn(y_pred=pred, y_true=batch["y"].to(model.device))
 
             # Do backpropagation
@@ -894,10 +894,11 @@ def ind_loss(h_params: dict[str, int | float],
 
     # Instead of return the average loss value, the model is evaluated and precision, recall and
     # F1-score are determined
-    metrics_p, metrics_s = test_model(model=model,
-                                      test_dataset=test,
-                                      **parameters)
-    avg_recall = np.average([metrics_p.recall, metrics_s.recall])
+    if model:
+        metrics_p, metrics_s = test_model(model=model,
+                                          test_dataset=test,
+                                          **parameters)
+        avg_recall = np.average([metrics_p.recall, metrics_s.recall])
 
 
     # If parameters for model do not fit and neither training or validation was possible
@@ -910,5 +911,7 @@ def ind_loss(h_params: dict[str, int | float],
     # if is_nan(min_loss):
     #     return 1000
     # return min_loss
-
-    return 1 - avg_recall   # Since loss is minimized, 1 - avg_recall is needed
+    if model:
+        return 1 - avg_recall   # Since loss is minimized, 1 - avg_recall is needed
+    else:
+        return 1
