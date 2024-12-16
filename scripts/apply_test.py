@@ -5,7 +5,6 @@ import tqdm
 import numpy as np
 import torch
 import yaml
-from torch.ao.nn.quantized.functional import threshold
 from torch.utils.data import DataLoader
 import seisbench.models as sbm  # noqa
 import seisbench.generate as sbg # noqa
@@ -99,8 +98,11 @@ def misclassified_data(parfile, probability=None):
                              shuffle=False, num_workers=parameters["nworkers"],
                              worker_init_fn=worker_seeding, drop_last=False)
 
-    picks_and_probs = get_picks(model=model, dataloader=test_loader, sigma=parameters["sigma"],
-                                win_len_factor=parameters["win_len_factor"], return_data=True)
+    picks_and_probs = get_picks(model=model,
+                                dataloader=test_loader,
+                                sigma=parameters["sigma"],
+                                win_len_factor=parameters["win_len_factor"],
+                                return_data=True)
     
     # Finding wrong classified data, i.e. finding false positives and negatives
     for index, (pred_sample, pred_prob, residual) in enumerate(zip(picks_and_probs["pred_P"], picks_and_probs["prob_P"], picks_and_probs["residual_P"])):

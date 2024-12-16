@@ -24,6 +24,7 @@ from torch.utils.data import DataLoader
 from seisbench.util import worker_seeding # noqa
 from tqdm.auto import tqdm
 import torch.utils.data.distributed as datadist
+from sklearn.metrics import auc
 
 from core.utils import (read_datasets, add_fake_events, get_phase_dict, check_parameters, is_nan,
                         get_picks, residual_histogram)
@@ -359,17 +360,6 @@ def train_model(model,
         print(f"Saved model as {model_name}.")
 
     return model, avg_train_loss, avg_valid_loss
-
-
-def auc(x: np.array,
-        y: np.array) -> float:
-    """
-    Returns area under a curce (auc), e.g. for precision-recall curve
-    Note, this only works for equally spaced probabilities
-    """
-
-    return np.trapz(y=y,
-                    x=x)
 
 
 def add_metrics(axes,
