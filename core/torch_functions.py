@@ -928,8 +928,8 @@ def ind_loss(h_params: dict[str, int | float],
         auc_s = auc(x=recalls_s,
                     y=precision_s)
 
-        avg_auc = np.average(a=[auc_p,
-                                auc_s])
+        avg_auc = 1 - np.average(a=[auc_p,
+                                    auc_s])
     else:
         avg_auc = 1000
 
