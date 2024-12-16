@@ -933,7 +933,7 @@ def ind_loss(h_params: dict[str, int | float],
                 os.makedirs(os.path.join(parameters["checkpoint_path"], "models"))
         except FileExistsError:
             pass
-        torch.save(obj=model,
+        torch.save(obj=model.module,   # Unwrap DDP model
                    f=os.path.join(parameters["checkpoint_path"], "models", filename))
 
     return avg_auc
