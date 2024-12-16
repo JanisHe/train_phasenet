@@ -913,25 +913,23 @@ def ind_loss(h_params: dict[str, int | float],
             recalls_s[index] = metrics_s.recall
 
         # Determine area under precision-recall curve
-        auc_p = auc(x=recalls_p,
-                    y=precision_p)
-        auc_s = auc(x=recalls_s,
-                    y=precision_s)
+        try:
+            auc_p = auc(x=recalls_p,
+                        y=precision_p)
+            auc_s = auc(x=recalls_s,
+                        y=precision_s)
+            avg_auc = 1 - np.average(a=[auc_p,
+                                        auc_s])
 
-        avg_auc = 1 - np.average(a=[auc_p,
-                                    auc_s])
+            # Save model
+            filename = f"{pathlib.Path(h_params['parfile']).stem}_{avg_auc:.5f}"
+            if os.path.isfile(path=os.path.join(parameters["checkpoint_path"], "models")) is False:
+                os.makedirs(os.path.join(parameters["checkpoint_path"], "models"))
+            torch.save(obj=model,
+                       f=os.path.join(parameters["checkpoint_path"], "models", filename))
+        except ValueError:   # recall is not monotonic increasing or monotonic decreasing
+            avg_auc = 1000
     else:
         avg_auc = 1000
 
-
-    # If parameters for model do not fit and neither training or validation was possible
-    # These case are catched by trial and error statement
-    # if len(val_loss) == 0:
-    #     return 1000
-    # else:
-    #     min_loss = min(val_loss)
-    #
-    # if is_nan(min_loss):
-    #     return 1000
-    # return min_loss
     return avg_auc
