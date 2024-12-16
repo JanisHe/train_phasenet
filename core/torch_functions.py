@@ -920,19 +920,20 @@ def ind_loss(h_params: dict[str, int | float],
                         y=precision_s)
             avg_auc = 1 - np.average(a=[auc_p,
                                         auc_s])
-
-            # Save model
-            filename = f"{pathlib.Path(h_params['parfile']).stem}_{avg_auc:.5f}.pt"
-            try:
-                if os.path.isfile(path=os.path.join(parameters["checkpoint_path"], "models")) is False:
-                    os.makedirs(os.path.join(parameters["checkpoint_path"], "models"))
-            except FileExistsError:
-                pass
-            torch.save(obj=model,
-                       f=os.path.join(parameters["checkpoint_path"], "models", filename))
         except ValueError:   # recall is not monotonic increasing or monotonic decreasing
             avg_auc = 1000
     else:
         avg_auc = 1000
+
+    # Save model if avg_auc is not 1000
+    if avg_auc < 1000:
+        filename = f"{pathlib.Path(h_params['parfile']).stem}_{avg_auc:.5f}.pt"
+        try:
+            if os.path.isfile(path=os.path.join(parameters["checkpoint_path"], "models")) is False:
+                os.makedirs(os.path.join(parameters["checkpoint_path"], "models"))
+        except FileExistsError:
+            pass
+        torch.save(obj=model,
+                   f=os.path.join(parameters["checkpoint_path"], "models", filename))
 
     return avg_auc
