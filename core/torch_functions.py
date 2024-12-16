@@ -157,8 +157,8 @@ class Metrics:
             return 0
 
     @property
-    def f1_score(self) -> float:
-        return 2 * ((self.precision * self.recall) / (self.precision + self.recall))
+    def f1_score(self, eps=1e-6) -> float:
+        return 2 * ((self.precision * self.recall) / (self.precision + self.recall + eps))
 
 
 class VectorCrossEntropyLoss:
@@ -894,6 +894,7 @@ def ind_loss(h_params: dict[str, int | float],
 
     # Instead of return the average loss value, the model is evaluated and precision, recall and
     # F1-score are determined
+    # TODO: Perhaps there is better way instead of using a fixed pick threshold
     if model:
         metrics_p, metrics_s = test_model(model=model.module,  # Since model is wrapped with DDP
                                           test_dataset=test,
