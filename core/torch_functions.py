@@ -922,9 +922,12 @@ def ind_loss(h_params: dict[str, int | float],
                                         auc_s])
 
             # Save model
-            filename = f"{pathlib.Path(h_params['parfile']).stem}_{avg_auc:.5f}"
-            if os.path.isfile(path=os.path.join(parameters["checkpoint_path"], "models")) is False:
-                os.makedirs(os.path.join(parameters["checkpoint_path"], "models"))
+            filename = f"{pathlib.Path(h_params['parfile']).stem}_{avg_auc:.5f}.pt"
+            try:
+                if os.path.isfile(path=os.path.join(parameters["checkpoint_path"], "models")) is False:
+                    os.makedirs(os.path.join(parameters["checkpoint_path"], "models"))
+            except FileExistsError:
+                pass
             torch.save(obj=model,
                        f=os.path.join(parameters["checkpoint_path"], "models", filename))
         except ValueError:   # recall is not monotonic increasing or monotonic decreasing
