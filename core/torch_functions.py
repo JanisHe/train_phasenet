@@ -360,6 +360,18 @@ def train_model(model,
 
     return model, avg_train_loss, avg_valid_loss
 
+
+def auc(x: np.array,
+        y: np.array) -> float:
+    """
+    Returns area under a curce (auc), e.g. for precision-recall curve
+    Note, this only works for equally spaced probabilities
+    """
+
+    return np.trapz(y=y,
+                    x=x)
+
+
 def add_metrics(axes,
                 metrics: Metrics):
     # TODO: Add mean and standard deviation
@@ -810,11 +822,6 @@ def ind_loss(h_params: dict[str, int | float],
     parameters["activation_function"] = h_params["activation_function"]
     activation_function = h_params["activation_function"]
 
-    # Add parameters for testing each model
-    parameters["true_pick_prob"] = 0.5
-    parameters["arrival_residual"] = 30
-    parameters["win_len_factor"] = 10
-
     if activation_function.lower() == "elu":
         activation_function = torch.nn.ELU()
     elif activation_function.lower() == "relu":
@@ -893,13 +900,38 @@ def ind_loss(h_params: dict[str, int | float],
     dist.destroy_process_group()
 
     # Instead of return the average loss value, the model is evaluated and precision, recall and
-    # F1-score are determined
-    # TODO: Perhaps there is better way instead of using a fixed pick threshold
+    # F1-score are determined for different probabilities
+    # Add parameters for testing each model
+    parameters["arrival_residual"] = 30
+    parameters["win_len_factor"] = 10
+
     if model:
-        metrics_p, metrics_s = test_model(model=model.module,  # Since model is wrapped with DDP
-                                          test_dataset=test,
-                                          **parameters)
-        avg_recall = np.average([metrics_p.recall, metrics_s.recall])
+        probs = np.linspace(start=1e-3,
+                            stop=1,
+                            num=20)
+        precision_p, precision_s = np.zeros(len(probs)), np.zeros(len(probs))
+        recalls_p, recalls_s = np.zeros(len(probs)), np.zeros(len(probs))
+        for index, prob in enumerate(probs):
+            parameters["true_pick_prob"] = prob
+
+            metrics_p, metrics_s = test_model(model=model.module,  # Since model is wrapped with DDP
+                                              test_dataset=test,
+                                              **parameters)
+            precision_p[index] = metrics_p.precision
+            precision_s[index] = metrics_s.precision
+            recalls_p[index] = metrics_p.recall
+            recalls_s[index] = metrics_s.recall
+
+        # Determine area under precision-recall curve
+        auc_p = auc(x=recalls_p,
+                    y=precision_p)
+        auc_s = auc(x=recalls_s,
+                    y=precision_s)
+
+        avg_auc = np.average(a=[auc_p,
+                                auc_s])
+    else:
+        avg_auc = 1000
 
 
     # If parameters for model do not fit and neither training or validation was possible
@@ -912,7 +944,4 @@ def ind_loss(h_params: dict[str, int | float],
     # if is_nan(min_loss):
     #     return 1000
     # return min_loss
-    if model:
-        return 1 - avg_recall   # Since loss is minimized, 1 - avg_recall is needed
-    else:
-        return 1
+    return avg_auc
