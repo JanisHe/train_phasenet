@@ -266,8 +266,6 @@ def read_datasets(parameters: dict,
     """
     Read seisbench dataset from parameter file.
     """
-    # TODO: the first dataset is markes with a dash, however, more datasets are not marked with a dash
-    #       This can be a bit confusing
     dataset_count = 0
     for dataset in parameters[dataset_key]:  # Loop over each entry in list
         for dataset_name in dataset.keys():  # Loop over each key in dataset (depends on type (dict | list)

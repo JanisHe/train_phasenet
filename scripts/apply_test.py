@@ -163,6 +163,9 @@ def probabilities(parfile,
         model = torch.load(os.path.join(model_path, parameters.pop("model_name")),
                            map_location=torch.device("cpu"))
 
+    # Add sampling_rate from model to parameters
+    parameters["sampling_rate"] = model.sampling_rate
+
     # Read datasets
     seisbench_dataset = read_datasets(parameters=parameters,
                                       dataset_key="datasets")

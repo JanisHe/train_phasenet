@@ -387,11 +387,11 @@ def test_model(model: seisbench.models.phasenet.PhaseNet,
     """
     test_generator = sbg.GenericGenerator(test_dataset)
 
-    samples_before = int(parameters["nsamples"] / 3)
+    samples_before = int(model.in_samples / 3)
     augmentations = [
         sbg.WindowAroundSample(list(get_phase_dict().keys()),
                                samples_before=samples_before,
-                               windowlen=parameters["nsamples"],
+                               windowlen=model.in_samples,
                                selection="first",    # XXX Problem with multi events
                                strategy="move"),
         sbg.Normalize(demean_axis=-1,
@@ -444,14 +444,14 @@ def test_model(model: seisbench.models.phasenet.PhaseNet,
         fig = plt.figure(figsize=(16, 8))
         ax1 = plt.subplot(121)
         ax2 = plt.subplot(122, sharey=ax1)
-        residual_histogram(residuals=picks_and_probs["residual_P"] / parameters["sampling_rate"],
+        residual_histogram(residuals=picks_and_probs["residual_P"] / model.sampling_rate,
                            axes=ax1,
-                           xlim=(-10 * parameters["sigma"] / parameters["sampling_rate"],
-                                 10 * parameters["sigma"] / parameters["sampling_rate"]))
-        residual_histogram(residuals=picks_and_probs["residual_S"] / parameters["sampling_rate"],
+                           xlim=(-10 * parameters["sigma"] / model.sampling_rate,
+                                 10 * parameters["sigma"] / model.sampling_rate))
+        residual_histogram(residuals=picks_and_probs["residual_S"] / model.sampling_rate,
                            axes=ax2,
-                           xlim=(-10 * parameters["sigma"] / parameters["sampling_rate"],
-                                 10 * parameters["sigma"] / parameters["sampling_rate"]))
+                           xlim=(-10 * parameters["sigma"] /model.sampling_rate,
+                                 10 * parameters["sigma"] / model.sampling_rate))
         add_metrics(ax1, metrics=metrics_p)
         add_metrics(ax2, metrics=metrics_s)
         ax1.set_title("P residual")
