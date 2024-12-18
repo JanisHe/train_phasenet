@@ -586,6 +586,7 @@ def torch_process_group_init_propulate(subgroup_comm: MPI.Comm,
         The method to use to initialize the process group.
         Options: [``nccl-slurm``, ``nccl-openmpi``, ``gloo``]
         If CUDA is not available, ``gloo`` is automatically chosen for the method.
+    trace_func: prints output. Default is print statement
     """
     global _DATA_PARALLEL_GROUP
     global _DATA_PARALLEL_ROOT
@@ -678,13 +679,15 @@ def torch_process_group_init_propulate(subgroup_comm: MPI.Comm,
 
 def get_data_loaders(comm: MPI.Comm,
                      parameters: dict,
-                     model):
+                     model,
+                     trace_func: print):
 
     # Read waveform datasets
     seisbench_dataset = read_datasets(parameters=parameters,
                                       component_order=model.component_order,
                                       dataset_key="datasets",
-                                      filter=parameters.get("filter"))
+                                      filter=parameters.get("filter"),
+                                      trace_func=trace_func)
 
     # Add fake events to metadata
     if parameters.get("add_fake_events"):
@@ -852,7 +855,8 @@ def ind_loss(h_params: dict[str, int | float],
 
     train_loader, val_loader, test = get_data_loaders(comm=subgroup_comm,
                                                       parameters=parameters,
-                                                      model=model)
+                                                      model=model,
+                                                      trace_func=log.info)
 
     # Move model to GPU if GPU is available
     if torch.cuda.is_available():

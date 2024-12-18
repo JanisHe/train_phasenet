@@ -1,5 +1,6 @@
 import sys
 import os
+import shutil
 import logging
 import pathlib
 import random
@@ -33,6 +34,17 @@ def main(parfile: str):
     # Check params and if key is not found, use default value
     params = check_parameters(parameters=params)
 
+    # Create a copy of parfile and change str for parfile
+    # Otherwise, if someone makes changes in parfile, these changes are read by ind_loss (everytime!)
+    renamed_parfile = os.path.join(params["checkpoint_path"], parfile)
+    if not os.path.exists(params["checkpoint_path"]):
+        os.makedirs(params["checkpoint_path"])
+    try:
+        shutil.copyfile(src=parfile,
+                        dst=renamed_parfile)
+    except shutil.SameFileError:
+        pass
+
     # TODO: Write h_params to yaml
     limits_dict = {"learning_rate": params["learning_rate"],
                    "batch_size": params["batch_size"],
@@ -44,7 +56,7 @@ def main(parfile: str):
                    "stride": params["stride"],
                    "filters_root": params["filters_root"],
                    "activation_function": params["activation_function"],
-                   "parfile": parfile}
+                   "parfile": renamed_parfile}
 
     # Check whether one parameter in limits_dict has only a length of one
     # If yes, the same value is appended to the tuple
