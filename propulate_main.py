@@ -36,7 +36,7 @@ def main(parfile: str):
 
     # Create a copy of parfile and change str for parfile
     # Otherwise, if someone makes changes in parfile, these changes are read by ind_loss (everytime!)
-    renamed_parfile = os.path.join(params["checkpoint_path"], parfile)
+    renamed_parfile = os.path.join(params["checkpoint_path"], os.path.split(parfile)[-1])
     if not os.path.exists(params["checkpoint_path"]):
         os.makedirs(params["checkpoint_path"])
     try:
