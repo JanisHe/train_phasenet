@@ -260,25 +260,34 @@ def filter_dataset(filter: dict,
 def read_datasets(parameters: dict,
                   component_order: str = "ZNE",
                   dataset_key: str = "datasets",
-                  filter: (dict, None) = None,):
+                  filter: (dict, None) = None,
+                  verbose=True,
+                  trace_func=print):
     """
     Read seisbench dataset from parameter file.
     """
-    for lst in parameters[dataset_key]:
-        for dataset_count, dataset in enumerate(lst.values()):
+    # TODO: the first dataset is markes with a dash, however, more datasets are not marked with a dash
+    #       This can be a bit confusing
+    dataset_count = 0
+    for dataset in parameters[dataset_key]:  # Loop over each entry in list
+        for dataset_name in dataset.keys():  # Loop over each key in dataset (depends on type (dict | list)
             if dataset_count == 0:
-                sb_dataset = sbd.WaveformDataset(path=pathlib.Path(dataset),
+                sb_dataset = sbd.WaveformDataset(path=pathlib.Path(dataset[dataset_name]),
                                                  sampling_rate=parameters["sampling_rate"],
                                                  component_order=component_order)
                 if filter:
                     filter_dataset(filter=filter, dataset=sb_dataset)
             else:
-                subset = sbd.WaveformDataset(path=pathlib.Path(dataset),
+                subset = sbd.WaveformDataset(path=pathlib.Path(dataset[dataset_name]),
                                              sampling_rate=parameters["sampling_rate"],
                                              component_order=component_order)
                 if filter:
                     filter_dataset(filter=filter, dataset=subset)
                 sb_dataset += subset
+
+            dataset_count += 1
+            if verbose is True:
+                trace_func(f"Successfully read dataset {dataset_name}")
 
     return sb_dataset
 
@@ -642,29 +651,3 @@ def check_propulate_limits(params: dict) -> dict:
             params[key] = tuple([value, value])
 
     return params
-
-
-if __name__ == "__main__":
-    import yaml
-
-    parfile = "../propulate_parfile.yml"
-    with open(parfile, "r") as f:
-        params = yaml.safe_load(f)
-
-    params = check_parameters(parameters=params)
-
-    limits_dict = {"learning_rate": params["learning_rate"],
-                   "batch_size": params["batch_size"],
-                   "nsamples": params["nsamples"],
-                   "kernel_size": params["kernel_size"],
-                   "filter_factor": params["filter_factor"],
-                   "depth": params["depth"],
-                   "drop_rate": params["drop_rate"],
-                   "stride": params["stride"],
-                   "filters_root": params["filters_root"],
-                   "activation_function": params["activation_function"],
-                   "parfile": parfile}
-
-    l = check_propulate_limits(limits_dict)
-
-    print(l)
