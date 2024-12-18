@@ -636,6 +636,8 @@ def check_propulate_limits(params: dict) -> dict:
         if isinstance(value, tuple):
             if len(value) == 1:
                 params[key] = tuple([value[0], value[0]])
+        elif isinstance(value, list):
+            params[key] = tuple(value)
         else:
             params[key] = tuple([value, value])
 
@@ -649,16 +651,18 @@ if __name__ == "__main__":
     with open(parfile, "r") as f:
         params = yaml.safe_load(f)
 
-    limits_dict = {"learning_rate": tuple(params["learning_rate"]),
-                   "batch_size": tuple(params["batch_size"]),
-                   "nsamples": tuple(params["nsamples"]),
-                   "kernel_size": tuple(params["kernel_size"]),
-                   "filter_factor": tuple(params["filter_factor"]),
-                   "depth": tuple(params["depth"]),
-                   "drop_rate": tuple(params["drop_rate"]),
-                   "stride": tuple(params["stride"]),
-                   "filters_root": tuple(params["filters_root"]),
-                   "activation_function": tuple(params["activation_function"]),
+    params = check_parameters(parameters=params)
+
+    limits_dict = {"learning_rate": params["learning_rate"],
+                   "batch_size": params["batch_size"],
+                   "nsamples": params["nsamples"],
+                   "kernel_size": params["kernel_size"],
+                   "filter_factor": params["filter_factor"],
+                   "depth": params["depth"],
+                   "drop_rate": params["drop_rate"],
+                   "stride": params["stride"],
+                   "filters_root": params["filters_root"],
+                   "activation_function": params["activation_function"],
                    "parfile": parfile}
 
     l = check_propulate_limits(limits_dict)

@@ -34,16 +34,16 @@ def main(parfile: str):
     params = check_parameters(parameters=params)
 
     # TODO: Write h_params to yaml
-    limits_dict = {"learning_rate": tuple(params["learning_rate"]),
-                   "batch_size": tuple(params["batch_size"]),
-                   "nsamples": tuple(params["nsamples"]),
-                   "kernel_size": tuple(params["kernel_size"]),
-                   "filter_factor": tuple(params["filter_factor"]),
-                   "depth": tuple(params["depth"]),
-                   "drop_rate": tuple(params["drop_rate"]),
-                   "stride": tuple(params["stride"]),
-                   "filters_root": tuple(params["filters_root"]),
-                   "activation_function": tuple(params["activation_function"]),
+    limits_dict = {"learning_rate": params["learning_rate"],
+                   "batch_size": params["batch_size"],
+                   "nsamples": params["nsamples"],
+                   "kernel_size": params["kernel_size"],
+                   "filter_factor": params["filter_factor"],
+                   "depth": params["depth"],
+                   "drop_rate": params["drop_rate"],
+                   "stride": params["stride"],
+                   "filters_root": params["filters_root"],
+                   "activation_function": params["activation_function"],
                    "parfile": parfile}
 
     # Check whether one parameter in limits_dict has only a length of one
