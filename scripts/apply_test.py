@@ -13,6 +13,7 @@ from seisbench.util import worker_seeding # noqa
 import matplotlib.pyplot as plt
 from matplotlib.offsetbox import AnchoredText
 from typing import Union
+from sklearn.metrics import auc
 
 from core.utils import is_nan, read_datasets, get_phase_dict, get_picks
 from core.torch_functions import test_model
@@ -213,11 +214,17 @@ def probabilities(parfile,
     best_threshold_s = best_threshold(recall_precision_array=rp_s,
                                       thresholds=probs)
 
+    # Determining area under precision-recall curve
+    auc_p = auc(x=recalls_p,
+                y=precisions_p)
+    auc_s = auc(x=recalls_s,
+                y=precisions_s)
+
     # Plot
     fig= plt.figure(figsize=(11, 5))
     ax_pr = fig.add_subplot(121)
-    ax_pr.plot(recalls_p, precisions_p, label="P")
-    ax_pr.plot(recalls_s, precisions_s, label="S")
+    ax_pr.plot(recalls_p, precisions_p, label=f"P (AUC: {auc_p:.2f}")
+    ax_pr.plot(recalls_s, precisions_s, label=f"S (AUC: {auc_s:.2f}")
     ax_pr.legend()
     ax_pr.grid(visible=True)
     ax_pr.set_xlabel("Recall")
