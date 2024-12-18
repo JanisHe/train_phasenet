@@ -10,7 +10,7 @@ from mpi4py import MPI
 from propulate import Islands
 from propulate.utils import get_default_propagator, set_logger_config
 from core.torch_functions import ind_loss
-from core.utils import check_propulate_limits
+from core.utils import check_propulate_limits, check_parameters
 
 
 GPUS_PER_NODE: int = 4  # This example script was tested on a single node with 4 GPUs.
@@ -29,6 +29,10 @@ def main(parfile: str):
     comm = MPI.COMM_WORLD
 
     pop_size = 2 * comm.size  # Breeding population size
+
+    # Check params and if key is not found, use default value
+    params = check_parameters(parameters=params)
+
     # TODO: Write h_params to yaml
     limits_dict = {"learning_rate": tuple(params["learning_rate"]),
                    "batch_size": tuple(params["batch_size"]),

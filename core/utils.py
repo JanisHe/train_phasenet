@@ -216,6 +216,21 @@ def check_parameters(parameters: dict) -> dict:
     if not parameters.get("depth"):
         parameters["depth"] = 5
 
+    if not parameters.get("filter_factor"):
+        parameters["filter_factor"] = 1
+
+    if not parameters.get("learning_rate"):
+        parameters["learning_rate"] = 0.01
+
+    if not parameters.get("batch_size"):
+        parameters["batch_size"] = 256
+
+    if not parameters.get("nsamples"):
+        parameters["nsamples"] = 3001
+
+    if not parameters.get("activation_function"):
+        parameters["activation_function"] = "relu"
+
     return parameters
 
 

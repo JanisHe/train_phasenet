@@ -800,6 +800,7 @@ def ind_loss(h_params: dict[str, int | float],
         parameters = yaml.safe_load(file)
 
     # Extract hyperparameter combination to test from input dictionary and add to parameters dictionary
+    # If parameter is not given, then default value is used
     parameters["learning_rate"] = h_params["learning_rate"]
     parameters["batch_size"] = h_params["batch_size"]
     parameters["nsamples"] = h_params["nsamples"]
@@ -830,12 +831,12 @@ def ind_loss(h_params: dict[str, int | float],
     # print_params.pop("datasets")
     # log.info(msg=f"rank: {rank} | {print_params}")
 
+    # Check parameters and modify e.g. metadata or if key is not found, default value is used
+    parameters = check_parameters(parameters=parameters)
+
     # Set number of workers for PyTorch
     # https://github.com/pytorch/pytorch/issues/101850
     os.sched_setaffinity(0, range(os.cpu_count()))
-
-    # Check parameters and modify e.g. metadata
-    parameters = check_parameters(parameters=parameters)
 
     # Load model
     model = sbm.VariableLengthPhaseNet(phases="PSN",
