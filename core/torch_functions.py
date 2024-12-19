@@ -493,7 +493,7 @@ def train_model_propulate(model,
                                    trace_func=trace_func)
 
     # Loop over each epoch to start training
-    # rank = dist.get_rank()
+    rank = dist.get_rank()
     # progress_bar = tqdm(total=epochs,
     #                     desc=f"rank {rank} | epoch   ",
     #                     ncols=100,
@@ -506,7 +506,7 @@ def train_model_propulate(model,
         train_loader.sampler.set_epoch(epoch)
         validation_loader.sampler.set_epoch(epoch)
         # pbar.set_description_str(desc=f"rank {rank} | epoch {epoch + 1}")
-        # trace_func(f"Rank {rank} in epoch {epoch + 1}")
+        trace_func(f"Rank {rank} in epoch {epoch + 1}")
 
         for batch_id, batch in enumerate(train_loader):
             # Compute prediction and loss
@@ -528,7 +528,7 @@ def train_model_propulate(model,
 
         # Validate the model
         model.eval()  # Close the model for validation / evaluation
-        # trace_func(f"Validate rank {rank} for epoch {epoch + 1}")
+        trace_func(f"Validate rank {rank} for epoch {epoch + 1}")
         with torch.no_grad():  # Disable gradient calculation
             for batch in validation_loader:
                 try:
@@ -600,8 +600,8 @@ def torch_process_group_init_propulate(subgroup_comm: MPI.Comm,
 
     if comm_size == 1:
         return
-    # master_address = f"{socket.gethostname()[:-7]}i"  # THIS IS THE NEW BIT! IT WILL PULL OUT THE rank-0 NODE NAME
-    master_address = f"{socket.gethostname()}"
+    master_address = f"{socket.gethostname()[:-7]}i"  # THIS IS THE NEW BIT! IT WILL PULL OUT THE rank-0 NODE NAME
+    # master_address = f"{socket.gethostname()}"
     # Each multi-rank worker rank needs to get the hostname of rank 0 of its subgroup.
     master_address = subgroup_comm.bcast(str(master_address), root=0)
 
@@ -860,14 +860,12 @@ def ind_loss(h_params: dict[str, int | float],
 
     # Move model to GPU if GPU is available
     if torch.cuda.is_available():
-        device = subgroup_comm.rank % GPUS_PER_NODE
+        # device = subgroup_comm.rank % GPUS_PER_NODE   # Au Haicore werden alle gesehen, deswegen wird device gewaehlt
+        device = "cuda"   # Auf Juwels muss als device "cuda" benutzt werden
     else:
         device = "cpu"
 
-    # Auf Juwels muss als device "cuda" benutzt werden
-    model = model.to("cuda")
-    # Au Haicore werden alle gesehen, deswegen wird device gewaehlt
-    # model = model.to(device)
+    model = model.to(device)
 
     if dist.is_initialized() and dist.get_world_size() > 1:
         model = DDP(model)  # Wrap model with DDP.
@@ -900,7 +898,8 @@ def ind_loss(h_params: dict[str, int | float],
     parameters["arrival_residual"] = 30
     parameters["win_len_factor"] = 10
 
-    if model:
+    # Only test and save model for rank 0 since gradients are synchronized in backward passes
+    if model and dist.get_rank() == 0:
         probs = np.linspace(start=1e-3,
                             stop=1,
                             num=20)
