@@ -889,9 +889,6 @@ def ind_loss(h_params: dict[str, int | float],
                                                         lr_scheduler=None,
                                                         trace_func=log.info)
 
-    # Return best validation loss as an individual's loss (trained so lower is better).
-    dist.destroy_process_group()
-
     # Instead of return the average loss value, the model is evaluated and precision, recall and
     # F1-score are determined for different probabilities
     # Add parameters for testing each model
@@ -939,5 +936,8 @@ def ind_loss(h_params: dict[str, int | float],
             pass
         torch.save(obj=model.module,   # Unwrap DDP model
                    f=os.path.join(parameters["checkpoint_path"], "models", filename))
+
+    # Return best validation loss as an individual's loss (trained so lower is better).
+    dist.destroy_process_group()
 
     return avg_auc
