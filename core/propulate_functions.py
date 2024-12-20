@@ -459,6 +459,7 @@ def ind_loss(h_params: dict[str, int | float],
 
     # Only test and save model for rank 0 since gradients are synchronized in backward passes
     if model:
+        log.info("Testing model on test dataset")
         probs = np.linspace(start=1e-3,
                             stop=1,
                             num=20)
