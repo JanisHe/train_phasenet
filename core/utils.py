@@ -9,9 +9,7 @@ import obspy
 import seisbench  # noqa
 
 from typing import Union
-import matplotlib.pyplot as plt
 import seisbench.data as sbd # noqa
-from torch.utils.data import DataLoader
 import seisbench.generate as sbg # noqa
 from seisbench.util import worker_seeding # noqa
 from seisbench.models.phasenet import PhaseNet # noqa

@@ -10,7 +10,7 @@ from mpi4py import MPI
 
 from propulate import Islands
 from propulate.utils import get_default_propagator, set_logger_config
-from core.torch_functions import ind_loss
+from core.propulate_functions import ind_loss
 from core.utils import check_propulate_limits, check_parameters
 
 
