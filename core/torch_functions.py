@@ -488,7 +488,7 @@ def train_model_propulate(model,
 
     # Initialize early stopping class
     early_stopping = EarlyStopping(patience=patience,
-                                   verbose=False,
+                                   verbose=True,
                                    path_checkpoint=None,
                                    trace_func=trace_func)
 
@@ -890,8 +890,7 @@ def ind_loss(h_params: dict[str, int | float],
                                                         trace_func=log.info)
 
     # Return best validation loss as an individual's loss (trained so lower is better).
-    if dist.get_rank() != 0:
-        dist.barrier()
+    dist.barrier()
     dist.destroy_process_group()
 
     # Instead of return the average loss value, the model is evaluated and precision, recall and

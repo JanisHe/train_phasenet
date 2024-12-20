@@ -41,13 +41,20 @@ def main(parfile):
     # Check parameters and modify e.g. metadata
     parameters = check_parameters(parameters=parameters)
 
+    # Check device for model
+    if torch.cuda.is_available() is True:
+        device = "cuda"
+    else:
+        device = "cpu"
+
     # Load model
     if parameters.get("preload_model"):
         try:
             model = sbm.PhaseNet.from_pretrained(parameters["preload_model"])
         except (ValueError, requests.exceptions.ConnectionError) as e:
             if os.path.isfile(parameters["preload_model"]) is True:
-                model = torch.load(parameters["preload_model"], map_location=torch.device("cpu"))
+                model = torch.load(parameters["preload_model"],
+                                   map_location=torch.device(device))
             else:
                 msg = f"{e}\nDid not find {parameters['preload_model']}."
                 raise IOError(msg)

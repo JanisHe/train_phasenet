@@ -146,12 +146,19 @@ def probabilities(parfile,
     with open(parfile, "r") as file:
         parameters = yaml.safe_load(file)
 
+    # Check device for model
+    if torch.cuda.is_available() is True:
+        device = "cuda"
+    else:
+        device = "cpu"
+
     # Load model
     if not model_path:
         if parameters.get("model"):
             if os.path.isfile(parameters["model"]) is True:
                 parameters["filename"] = pathlib.Path(parameters["model"]).stem
-                model = torch.load(parameters.pop("model"), map_location=torch.device("cpu"))
+                model = torch.load(parameters.pop("model"),
+                                   map_location=torch.device(device))
             else:
                 parameters["filename"] = parameters["model"]
                 model = sbm.PhaseNet.from_pretrained(parameters.pop("model"))
@@ -161,7 +168,7 @@ def probabilities(parfile,
     else:
         parameters["filename"] = pathlib.Path(parameters["model_name"]).stem
         model = torch.load(os.path.join(model_path, parameters.pop("model_name")),
-                           map_location=torch.device("cpu"))
+                           map_location=torch.device(device))
 
     # Add sampling_rate from model to parameters
     parameters["sampling_rate"] = model.sampling_rate
