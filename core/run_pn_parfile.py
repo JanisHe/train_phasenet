@@ -12,7 +12,6 @@ import matplotlib.pyplot as plt
 import seisbench.generate as sbg # noqa
 import seisbench.models as sbm # noqa
 from seisbench.util import worker_seeding # noqa
-from torch.nn.functional import dropout
 from torch.utils.data import DataLoader
 import torch.optim as optim
 
