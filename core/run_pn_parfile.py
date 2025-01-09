@@ -245,9 +245,20 @@ def main(parfile):
 
                 pbar.update()
 
+        # Plot precision-recall curve for model
+        fig_metrics = plt.figure(figsize=(11, 5))
+        ax_pr = fig_metrics.add_subplot(121)
+        ax_pr.plot(recalls_p, precision_p, label=f"P")
+        ax_pr.plot(recalls_s, precision_s, label=f"S")
+        ax_pr.legend()
+        ax_pr.grid(visible=True)
+        ax_pr.set_xlabel("Recall")
+        ax_pr.set_ylabel("Precision")
+        ax_pr.set_xlim(0, 1)
+        ax_pr.set_ylim(0.75, 1.05)
+
         # Plot metrics for P and S in one figure
-        fig_metrics = plt.figure()
-        ax = fig_metrics.add_subplot(111)
+        ax = fig_metrics.add_subplot(122)
         ax.plot(probs, precision_p, color="blue", linestyle="-", label="Precision P")
         ax.plot(probs, precision_s, color="blue", linestyle="--", label="Precision S")
         ax.plot(probs, recalls_p, color="red", linestyle="-", label="Recall P")
