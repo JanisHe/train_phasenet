@@ -14,6 +14,7 @@ import seisbench.models as sbm # noqa
 from seisbench.util import worker_seeding # noqa
 from torch.utils.data import DataLoader
 import torch.optim as optim
+from torchsummary import summary
 
 from torch_functions import train_model, VectorCrossEntropyLoss, test_model
 from utils import check_parameters, read_datasets, add_fake_events, get_phase_dict
@@ -71,6 +72,11 @@ def main(parfile):
                                            depth=parameters["depth"],
                                            drop_rate=parameters["drop_rate"])
     # model = torch.compile(model)  # XXX Attribute error when saving model
+
+    # Print summary of model
+    summary(model,
+            input_size=(3, parameters["nsamples"]),
+            device="cpu")
 
     # Move model to GPU if GPU is available
     if torch.cuda.is_available() is True:
