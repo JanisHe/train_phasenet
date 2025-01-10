@@ -48,7 +48,9 @@ def main(parfile: str):
     except shutil.SameFileError:
         pass
 
-    # Create file to store parameters for failed models
+    # Create file to store parameters for failed models and successfull model
+    f_tested = open(os.path.join(params["checkpoint_path"], "tested_models"), "w")
+    f_tested.close()
     f_failed = open(os.path.join(params["checkpoint_path"], "failed_models"), "w")
     f_failed.close()
 

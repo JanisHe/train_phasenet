@@ -504,6 +504,13 @@ def ind_loss(h_params: dict[str, int | float],
             pass
         torch.save(obj=model.module,   # Unwrap DDP model
                    f=os.path.join(parameters["checkpoint_path"], "models", filename))
+
+        # Write out parameters for successull tested model
+        with open(os.path.join(parameters["checkpoint_path"], "tested_models"), "a") as f:
+            f.write("##################################\n")
+            for key, item in parameters.items():
+                f.write(f"{key}: {item}\n")
+            f.write("##################################\n")
     else:  # Write parameters into file, where not fitting model parameters are stored
         with open(os.path.join(parameters["checkpoint_path"], "failed_models"), "a") as f:
             f.write("##################################\n")
