@@ -265,13 +265,13 @@ def main(parfile):
             auc_p = auc(x=recalls_p,
                         y=precision_p)
         except ValueError:
-            auc_p = None
+            auc_p = 999
 
         try:
             auc_s = auc(x=recalls_s,
                         y=precision_s)
         except ValueError:
-            auc_s = None
+            auc_s = 999
 
         fig_metrics = plt.figure(figsize=(11, 5))
         ax_pr = fig_metrics.add_subplot(121)
