@@ -372,8 +372,9 @@ def ind_loss(h_params: dict[str, int | float],
     parameters["depth"] = h_params["depth"]
     parameters["drop_rate"] = h_params["drop_rate"]
     parameters["activation_function"] = h_params["activation_function"]
-    activation_function = h_params["activation_function"]
 
+    # Select correct activation function
+    activation_function = h_params["activation_function"]
     if activation_function.lower() == "elu":
         activation_function = torch.nn.ELU()
     elif activation_function.lower() == "relu":
@@ -437,6 +438,8 @@ def ind_loss(h_params: dict[str, int | float],
                                  lr=parameters["learning_rate"])
 
 
+    # Train loop returns None, [], [] if model parameters to not fit, i.e. the model with the given parameters
+    # is not set up correctly.
     model, train_loss, val_loss = train_model_propulate(model=model,
                                                         patience=parameters.get("patience"),
                                                         epochs=parameters["epochs"],
@@ -477,6 +480,8 @@ def ind_loss(h_params: dict[str, int | float],
             recalls_s[index] = metrics_s.recall
 
         # Determine area under precision-recall curve
+        # If recall does not increasing or decreasing monotonically, then the model is not validated further and
+        # the average AUCPR is set to 1000, which is the value propulate optimizes for.
         try:
             auc_p = auc(x=recalls_p,
                         y=precision_p)
@@ -499,5 +504,12 @@ def ind_loss(h_params: dict[str, int | float],
             pass
         torch.save(obj=model.module,   # Unwrap DDP model
                    f=os.path.join(parameters["checkpoint_path"], "models", filename))
+    else:  # Write parameters into file, where not fitting model parameters are stored
+        with open(os.path.join(parameters["checkpoint_path"], "failed_models"), "a") as f:
+            f.write("##################################\n")
+            for key, item in parameters.items():
+                f.write(f"{key}: {item}\n")
+            f.write("##################################\n")
+
 
     return avg_auc

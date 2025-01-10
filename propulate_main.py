@@ -48,6 +48,10 @@ def main(parfile: str):
     except shutil.SameFileError:
         pass
 
+    # Create file to store parameters for failed models
+    f_failed = open(os.path.join(params["checkpoint_path"], "failed_models"), "w")
+    f_failed.close()
+
     # TODO: Write h_params to yaml
     limits_dict = {"learning_rate": params["learning_rate"],
                    "batch_size": params["batch_size"],
