@@ -259,10 +259,20 @@ def main(parfile):
                                           thresholds=probs)
 
         # Determining area under precision-recall curve
-        auc_p = auc(x=recalls_p,
-                    y=precision_p)
-        auc_s = auc(x=recalls_s,
-                    y=precision_s)
+        # If recall is neither increasing nor decreasing AUC raises a ValueError and AUC is not determined. Therefore,
+        # AUC is set to None.
+        try:
+            auc_p = auc(x=recalls_p,
+                        y=precision_p)
+        except ValueError:
+            auc_p = None
+
+        try:
+            auc_s = auc(x=recalls_s,
+                        y=precision_s)
+        except ValueError:
+            auc_s = None
+
         fig_metrics = plt.figure(figsize=(11, 5))
         ax_pr = fig_metrics.add_subplot(121)
         ax_pr.plot(recalls_p, precision_p, label=f"P (AUC: {auc_p:.2f}")
