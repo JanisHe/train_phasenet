@@ -647,3 +647,14 @@ def check_propulate_limits(params: dict) -> dict:
             params[key] = tuple([value, value])
 
     return params
+
+
+def best_threshold(recall_precision_array: np.ndarray,
+                   thresholds: np.ndarray,
+                   optimal_value=np.array([1, 1])):
+    distances = np.zeros(recall_precision_array.shape[0])
+    for index, element in enumerate(recall_precision_array):
+        distances[index] = np.linalg.norm(element - optimal_value)
+
+    # Return probability for minimum of distances
+    return thresholds[np.argmin(distances)]

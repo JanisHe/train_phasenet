@@ -15,7 +15,7 @@ from matplotlib.offsetbox import AnchoredText
 from typing import Union
 from sklearn.metrics import auc
 
-from core.utils import is_nan, read_datasets, get_phase_dict, get_picks
+from core.utils import is_nan, read_datasets, get_phase_dict, get_picks, best_threshold
 from core.torch_functions import test_model
 
 
@@ -122,17 +122,6 @@ def misclassified_data(parfile, probability=None):
                 ax2 = plt.subplot(212, sharex=ax1)
                 ax2.plot(picks_and_probs["prediction"][index, :, :].T)
                 plt.show()
-
-
-def best_threshold(recall_precision_array: np.ndarray,
-                   thresholds: np.ndarray,
-                   optimal_value=np.array([1, 1])):
-    distances = np.zeros(recall_precision_array.shape[0])
-    for index, element in enumerate(recall_precision_array):
-        distances[index] = np.linalg.norm(element - optimal_value)
-
-    # Return probability for minimum of distances
-    return thresholds[np.argmin(distances)]
 
 
 def probabilities(parfile,

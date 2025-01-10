@@ -15,9 +15,11 @@ from seisbench.util import worker_seeding # noqa
 from torch.utils.data import DataLoader
 import torch.optim as optim
 from torchsummary import summary
+from sklearn.metrics import auc
+from matplotlib.offsetbox import AnchoredText
 
 from torch_functions import train_model, VectorCrossEntropyLoss, test_model
-from utils import check_parameters, read_datasets, add_fake_events, get_phase_dict
+from utils import check_parameters, read_datasets, add_fake_events, get_phase_dict, best_threshold
 
 
 def main(parfile):
@@ -246,16 +248,42 @@ def main(parfile):
                 pbar.update()
 
         # Plot precision-recall curve for model
+        # Finding the best thresholds for P and S from precision-recall curve
+        # Determining distances of each precision-recall pair to point (1, 1)
+        # Smallest distance represents the best threshold
+        rp_p = np.array(list(zip(recalls_p, precision_p)))  # recall-precision array for P
+        rp_s = np.array(list(zip(recalls_s, precision_s)))  # recall-precision array for S
+        best_threshold_p = best_threshold(recall_precision_array=rp_p,
+                                          thresholds=probs)
+        best_threshold_s = best_threshold(recall_precision_array=rp_s,
+                                          thresholds=probs)
+
+        # Determining area under precision-recall curve
+        auc_p = auc(x=recalls_p,
+                    y=precision_p)
+        auc_s = auc(x=recalls_s,
+                    y=precision_s)
         fig_metrics = plt.figure(figsize=(11, 5))
         ax_pr = fig_metrics.add_subplot(121)
-        ax_pr.plot(recalls_p, precision_p, label=f"P")
-        ax_pr.plot(recalls_s, precision_s, label=f"S")
+        ax_pr.plot(recalls_p, precision_p, label=f"P (AUC: {auc_p:.2f}")
+        ax_pr.plot(recalls_s, precision_s, label=f"S (AUC: {auc_s:.2f}")
         ax_pr.legend()
         ax_pr.grid(visible=True)
         ax_pr.set_xlabel("Recall")
         ax_pr.set_ylabel("Precision")
         ax_pr.set_xlim(0, 1)
         ax_pr.set_ylim(0.75, 1.05)
+
+        # Box for best model parameters
+        text_box = AnchoredText(s=f"Optimal P threshold: {best_threshold_p:.2f}\n"
+                                  f"Optimal S threshold: {best_threshold_s:.2f}",
+                                frameon=False,
+                                loc="lower left",
+                                pad=0.5)
+        plt.setp(text_box.patch,
+                 facecolor='white',
+                 alpha=0.5)
+        ax_pr.add_artist(text_box)
 
         # Plot metrics for P and S in one figure
         ax = fig_metrics.add_subplot(122)
