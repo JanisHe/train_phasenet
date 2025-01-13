@@ -468,6 +468,7 @@ def ind_loss(h_params: dict[str, int | float],
                             num=20)
         precision_p, precision_s = np.zeros(len(probs)), np.zeros(len(probs))
         recalls_p, recalls_s = np.zeros(len(probs)), np.zeros(len(probs))
+        f1_p, f1_s = np.zeros(len(probs)), np.zeros(len(probs))
         for index, prob in enumerate(probs):
             parameters["true_pick_prob"] = prob
 
@@ -478,19 +479,36 @@ def ind_loss(h_params: dict[str, int | float],
             precision_s[index] = metrics_s.precision
             recalls_p[index] = metrics_p.recall
             recalls_s[index] = metrics_s.recall
+            f1_p[index] = metrics_p.f1_score
+            f1_s[index] = metrics_s.f1_score
+
+        # Determining best F1 score from netrics
+        f1_p_best = {"best_f1_p": np.max(f1_p),
+                     "idx": np.argmax(f1_p)}
+        f1_s_best = {"best_f1_s": np.max(f1_s),
+                     "idx": np.argmax(f1_s)}
+
+        # test whether index of best f1 scores for P and S is greater than 0
+        if f1_p_best["idx"] > 0 and f1_s_best["idx"] > 0:
+            avg_auc = np.average(a=[f1_p_best["best_f1_p"],
+                                        f1_s_best["best_f1_s"]])
+        else:
+            avg_auc = 1000
 
         # Determine area under precision-recall curve
         # If recall does not increasing or decreasing monotonically, then the model is not validated further and
         # the average AUCPR is set to 1000, which is the value propulate optimizes for.
-        try:
-            auc_p = auc(x=recalls_p,
-                        y=precision_p)
-            auc_s = auc(x=recalls_s,
-                        y=precision_s)
-            avg_auc = 1 - np.average(a=[auc_p,
-                                        auc_s])
-        except ValueError:   # recall is not monotonic increasing or monotonic decreasing
-            avg_auc = 1000
+        # The following code block computes the area und the precision-recall curve to let propulate optimize on
+        # this value
+        # try:
+        #     auc_p = auc(x=recalls_p,
+        #                 y=precision_p)
+        #     auc_s = auc(x=recalls_s,
+        #                 y=precision_s)
+        #     avg_auc = 1 - np.average(a=[auc_p,
+        #                                 auc_s])
+        # except ValueError:   # recall is not monotonic increasing or monotonic decreasing
+        #     avg_auc = 1000
     else:
         avg_auc = 1000
 
