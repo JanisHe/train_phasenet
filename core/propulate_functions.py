@@ -510,6 +510,7 @@ def ind_loss(h_params: dict[str, int | float],
             f.write("##################################\n")
             for key, item in parameters.items():
                 f.write(f"{key}: {item}\n")
+            f.write(f"Avg. AUCPR: {avg_auc:.5f}\n")
             f.write("##################################\n")
     else:  # Write parameters into file, where not fitting model parameters are stored
         with open(os.path.join(parameters["checkpoint_path"], "failed_models"), "a") as f:
