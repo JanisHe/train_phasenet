@@ -490,7 +490,7 @@ def ind_loss(h_params: dict[str, int | float],
 
         # test whether index of best f1 scores for P and S is greater than 0
         if f1_p_best["idx"] > 0 and f1_s_best["idx"] > 0:
-            avg_auc = np.average(a=[f1_p_best["best_f1_p"],
+            avg_auc = 1 - np.average(a=[f1_p_best["best_f1_p"],
                                         f1_s_best["best_f1_s"]])
         else:
             avg_auc = 1000
