@@ -430,6 +430,9 @@ def ind_loss(h_params: dict[str, int | float],
         x = [torch.rand(2, *in_size).type(torch.FloatTensor) for in_size in input_shape]
         model(*x)
     except RuntimeError:   # Return high ind loss since the model does not work
+        # destroy process group before returning
+        dist.barrier()
+        dist.destroy_process_group()
         return 1
 
     if dist.is_initialized() and dist.get_world_size() > 1:
