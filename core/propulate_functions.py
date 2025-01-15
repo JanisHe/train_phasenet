@@ -70,7 +70,10 @@ def train_model_propulate(model,
 
         for batch_id, batch in enumerate(train_loader):
             # Compute prediction and loss
-            pred = model(batch["X"].to(model.device))
+            try:
+                pred = model(batch["X"].to(model.device))
+            except RuntimeError:  # return empty lists for train and validation loss since parameters do mnot match
+                return None, [], []
             loss = loss_fn(y_pred=pred, y_true=batch["y"].to(model.device))
 
             # Do backpropagation
@@ -422,18 +425,6 @@ def ind_loss(h_params: dict[str, int | float],
         device = "cpu"
 
     model = model.to(device)
-
-    # Test whether the model works or not
-    # If not, a high ind loss is returned
-    try:
-        input_shape = [(3, parameters["nsamples"])]
-        x = [torch.rand(2, *in_size).type(torch.FloatTensor) for in_size in input_shape]
-        model(*x)
-    except RuntimeError:   # Return high ind loss since the model does not work
-        # destroy process group before returning
-        dist.barrier()
-        dist.destroy_process_group()
-        return 1
 
     if dist.is_initialized() and dist.get_world_size() > 1:
         model = DDP(model)  # Wrap model with DDP.
