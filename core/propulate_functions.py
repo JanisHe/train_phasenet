@@ -70,10 +70,7 @@ def train_model_propulate(model,
 
         for batch_id, batch in enumerate(train_loader):
             # Compute prediction and loss
-            try:
-                pred = model(batch["X"].to(model.device))
-            except RuntimeError:  # return empty lists for train and validation loss since parameters do mnot match
-                return None, [], []
+            pred = model(batch["X"].to(model.device))
             loss = loss_fn(y_pred=pred, y_true=batch["y"].to(model.device))
 
             # Do backpropagation
@@ -426,6 +423,15 @@ def ind_loss(h_params: dict[str, int | float],
 
     model = model.to(device)
 
+    # Test whether the model works or not
+    # If not, a high ind loss is returned
+    try:
+        input_shape = [(3, parameters["nsamples"])]
+        x = [torch.rand(2, *in_size).type(torch.FloatTensor) for in_size in input_shape]
+        model(*x)
+    except RuntimeError:   # Return high ind loss since the model does not work
+        return 1
+
     if dist.is_initialized() and dist.get_world_size() > 1:
         model = DDP(model)  # Wrap model with DDP.
 
@@ -489,11 +495,13 @@ def ind_loss(h_params: dict[str, int | float],
                      "idx": np.argmax(f1_s)}
 
         # test whether index of best f1 scores for P and S is greater than 0
+        # Usually, if highest f1-score is close to a probability of zero, the best threshold for
+        # P and S is close to zero
         if f1_p_best["idx"] > 0 and f1_s_best["idx"] > 0:
             avg_auc = 1 - np.average(a=[f1_p_best["best_f1_p"],
                                         f1_s_best["best_f1_s"]])
         else:
-            avg_auc = 1000
+            avg_auc = 1
 
         # Determine area under precision-recall curve
         # If recall does not increasing or decreasing monotonically, then the model is not validated further and
@@ -510,10 +518,10 @@ def ind_loss(h_params: dict[str, int | float],
         # except ValueError:   # recall is not monotonic increasing or monotonic decreasing
         #     avg_auc = 1000
     else:
-        avg_auc = 1000
+        avg_auc = 1
 
     # Save model if avg_auc is not 1000
-    if avg_auc < 1000:
+    if avg_auc < 1:
         filename = f"{pathlib.Path(h_params['parfile']).stem}_{avg_auc:.5f}.pt"
         try:
             if os.path.isfile(path=os.path.join(parameters["checkpoint_path"], "models")) is False:
@@ -537,6 +545,5 @@ def ind_loss(h_params: dict[str, int | float],
             for key, item in parameters.items():
                 f.write(f"{key}: {item}\n")
             f.write("##################################\n")
-
 
     return avg_auc
