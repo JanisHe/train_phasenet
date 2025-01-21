@@ -82,7 +82,7 @@ def main(parfile):
 
     # Print summary of model
     summary(model,
-            input_size=(3, parameters["nsamples"]),
+            input_size=(parameters["in_channels"], parameters["nsamples"]),
             device="cpu")
 
     # Move model to GPU if GPU is available
