@@ -502,15 +502,13 @@ def ind_loss(h_params: dict[str, int | float],
         # the average AUCPR is set to 1000, which is the value propulate optimizes for.
         # The following code block computes the area und the precision-recall curve to let propulate optimize on
         # this value
-        # try:
-        #     auc_p = auc(x=recalls_p,
-        #                 y=precision_p)
-        #     auc_s = auc(x=recalls_s,
-        #                 y=precision_s)
-        #     avg_auc = 1 - np.average(a=[auc_p,
-        #                                 auc_s])
-        # except ValueError:   # recall is not monotonic increasing or monotonic decreasing
-        #     avg_auc = 1000
+        try:
+            auc_p = auc(x=recalls_p,
+                        y=precision_p)
+            auc_s = auc(x=recalls_s,
+                        y=precision_s)
+        except ValueError:   # recall is not monotonic increasing or monotonic decreasing
+            avg_auc = 1
     else:
         avg_auc = 1
 
