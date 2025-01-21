@@ -214,10 +214,16 @@ def probabilities(parfile,
                                       thresholds=probs)
 
     # Determining area under precision-recall curve
-    auc_p = auc(x=recalls_p,
-                y=precisions_p)
-    auc_s = auc(x=recalls_s,
-                y=precisions_s)
+    try:
+        auc_p = auc(x=recalls_p,
+                    y=precisions_p)
+    except ValueError:
+        auc_p = 999
+    try:
+        auc_s = auc(x=recalls_s,
+                    y=precisions_s)
+    except ValueError:
+        auc_s = 999
 
     # Plot
     fig= plt.figure(figsize=(11, 5))
