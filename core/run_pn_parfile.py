@@ -64,16 +64,21 @@ def main(parfile):
         phases = parameters.get("phases")
         if not phases:
             phases = "PSN"
+
         # model = sbm.PhaseNet(phases=phases, norm="peak")
+        # Create new instance of model if no model is previously loaded for transfer learning
         model = sbm.VariableLengthPhaseNet(phases=phases,
                                            in_samples=parameters["nsamples"],
+                                           classes=len(phases),
+                                           sampling_rate=parameters["sampling_rate"],
+                                           in_channels=parameters["in_channels"],
                                            norm="peak",
                                            stride=parameters["stride"],
                                            kernel_size=parameters["kernel_size"],
                                            filters_root=parameters["filters_root"],
                                            depth=parameters["depth"],
                                            drop_rate=parameters["drop_rate"])
-    # model = torch.compile(model)  # XXX Attribute error when saving model
+        # model = torch.compile(model)  # XXX Attribute error when saving model
 
     # Print summary of model
     summary(model,

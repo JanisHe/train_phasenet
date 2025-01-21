@@ -199,6 +199,12 @@ def check_parameters(parameters: dict) -> dict:
 
     # Check for drop_rate, stride, depth, kernel_size, and filter_root in parameters
     # These parameters are used to modify the PhaseNet network
+    if not parameters.get("sampling_rate"):
+        parameters["sampling_rate"] = 100
+
+    if not parameters.get("in_channels"):
+        parameters["in_channels"] = 3
+
     if not parameters.get("drop_rate"):
         parameters["drop_rate"] = 0
 
