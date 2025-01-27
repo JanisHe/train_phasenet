@@ -80,6 +80,10 @@ def main(parfile):
                                            drop_rate=parameters["drop_rate"])
         # model = torch.compile(model)  # XXX Attribute error when saving model
 
+    # Add filter_kwargs to model if available in paramters
+    if parameters.get("filter_kwargs"):
+        model.filter_kwargs = parameters["filter_kwargs"][0]
+
     # Print summary of model
     summary(model,
             input_size=(parameters["in_channels"], parameters["nsamples"]),
