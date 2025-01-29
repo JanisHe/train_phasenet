@@ -232,6 +232,17 @@ def check_parameters(parameters: dict) -> dict:
     if not parameters.get("nsamples"):
         parameters["nsamples"] = 3001
 
+    if not parameters.get("phases"):
+        parameters["phases"] = "PSN"
+
+    # Update paramaters to train single phase models
+    parameters["p_phase"] = False
+    parameters["s_phase"] = False
+    if "P" in parameters["phases"]:
+        parameters["p_phase"] = True
+    if "S" in parameters["phases"]:
+        parameters["s_phase"] = True
+
     if not parameters.get("activation_function"):
         parameters["activation_function"] = "relu"
 
@@ -334,32 +345,55 @@ def add_fake_events(sb_dataset: sbd.WaveformDataset,
         sb_dataset._metadata = pd.concat(objs=metadata_collection)
 
 
-def get_phase_dict(num_phases=100):
-    map_phases = {
-        "trace_p_arrival_sample": "P",
-        "trace_pP_arrival_sample": "P",
-        "trace_P_arrival_sample": "P",
-        "trace_P1_arrival_sample": "P",
-        "trace_Pg_arrival_sample": "P",
-        "trace_Pn_arrival_sample": "P",
-        "trace_PmP_arrival_sample": "P",
-        "trace_pwP_arrival_sample": "P",
-        "trace_pwPm_arrival_sample": "P",
-        "trace_TPg_arrival_sample": "P",
-        "trace_TSg_arrival_sample": "P",
-        "trace_APg_arrival_sample": "P",
-        "trace_s_arrival_sample": "S",
-        "trace_S_arrival_sample": "S",
-        "trace_S1_arrival_sample": "S",
-        "trace_Sg_arrival_sample": "S",
-        "trace_SmS_arrival_sample": "S",
-        "trace_Sn_arrival_sample": "S",
-        "trace_ASg_arrival_sample": "S",
-    }
+def get_phase_dict(num_phases=100,
+                   p_phase=True,
+                   s_phase=True):
+    """
+    Returns dictionary with different phase names that are mapped only to P and S.
+    If p_phase and s_phase are True, then both phase types are inlcuded, otherwise the phase which is set to False
+    is ignored.
+    """
+    # Allocate empty dicts for P and S
+    map_phases_p = {}
+    map_phases_s = {}
 
-    for i in range(num_phases):
-        for phase in ["P", "S"]:
-            map_phases.update({f"trace_{phase}_{i}_arrival_sample": phase})
+    if p_phase:
+        map_phases_p = {
+            "trace_p_arrival_sample": "P",
+            "trace_pP_arrival_sample": "P",
+            "trace_P_arrival_sample": "P",
+            "trace_P1_arrival_sample": "P",
+            "trace_Pg_arrival_sample": "P",
+            "trace_Pn_arrival_sample": "P",
+            "trace_PmP_arrival_sample": "P",
+            "trace_pwP_arrival_sample": "P",
+            "trace_pwPm_arrival_sample": "P",
+            "trace_TPg_arrival_sample": "P",
+            "trace_TSg_arrival_sample": "P",
+            "trace_APg_arrival_sample": "P",
+        }
+
+        # Update for multiple P arrivals within a single window
+        for i in range(num_phases):
+            map_phases_p.update({f"trace_P_{i}_arrival_sample": "P"})
+
+    if s_phase:
+        map_phases_s = {
+            "trace_s_arrival_sample": "S",
+            "trace_S_arrival_sample": "S",
+            "trace_S1_arrival_sample": "S",
+            "trace_Sg_arrival_sample": "S",
+            "trace_SmS_arrival_sample": "S",
+            "trace_Sn_arrival_sample": "S",
+            "trace_ASg_arrival_sample": "S",
+        }
+
+        # Update for multiple S arrivals within a single window
+        for i in range(num_phases):
+            map_phases_s.update({f"trace_S_{i}_arrival_sample": "S"})
+
+    # Concatenate boh dictionaries for P and S and return final map_phases dict
+    map_phases = {**map_phases_p, **map_phases_s}
 
     return map_phases
 
@@ -470,7 +504,11 @@ def get_true_pick(batch: dict,
     if end > len(batch["y"][index, phase_index, :]):
         end = len(batch["y"][index, phase_index, :])
 
-    true_pick_index = np.argmax(batch["y"][index, phase_index, start:end].detach().numpy())
+    # Try except statement is required for single phase models
+    try:
+        true_pick_index = np.argmax(batch["y"][index, phase_index, start:end].detach().numpy())
+    except ValueError:
+        true_pick_index = 0
 
     true_pick_index = int(true_pick_index + start)
 
@@ -579,18 +617,23 @@ def get_picks(model,
                     s_p = 250
 
                 # Find true P and S phase arrival
-                true_p_samp = get_true_pick(batch=batch,
-                                            index=index,
-                                            phase="P",
-                                            phasenet_model=model,
-                                            samples_before=samples_before,
-                                            s_p=s_p)
-                true_s_samp = get_true_pick(batch=batch,
-                                            index=index,
-                                            phase="S",
-                                            phasenet_model=model,
-                                            samples_before=samples_before,
-                                            s_p=s_p)
+                true_p_samp = None  # Default values for true P and S arrival
+                true_s_samp = None  # which is required e.g. for single phase models
+                if "P" in model.labels:
+                    true_p_samp = get_true_pick(batch=batch,
+                                                index=index,
+                                                phase="P",
+                                                phasenet_model=model,
+                                                samples_before=samples_before,
+                                                s_p=s_p)
+
+                if "S" in model.labels:
+                    true_s_samp = get_true_pick(batch=batch,
+                                                index=index,
+                                                phase="S",
+                                                phasenet_model=model,
+                                                samples_before=samples_before,
+                                                s_p=s_p)
 
                 # Find predicted P and S arrival
                 pred_p_samp = get_predicted_pick(prediction=pred,

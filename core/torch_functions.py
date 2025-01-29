@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import seisbench.data as sbd  # noqa
 import seisbench.models as sbm # noqa
 import seisbench.generate as sbg # noqa
+from pyrocko.squirrel.base import nonef
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 from seisbench.util import worker_seeding # noqa
@@ -372,7 +373,8 @@ def test_model(model: seisbench.models.phasenet.PhaseNet,
 
     samples_before = int(model.in_samples / 3)
     augmentations = [
-        sbg.WindowAroundSample(list(get_phase_dict().keys()),
+        sbg.WindowAroundSample(list(get_phase_dict(p_phase=parameters["p_phase"],
+                                                   s_phase=parameters["s_phase"]).keys()),
                                samples_before=samples_before,
                                windowlen=model.in_samples,
                                selection="first",    # XXX Problem with multi events
@@ -381,7 +383,8 @@ def test_model(model: seisbench.models.phasenet.PhaseNet,
                       amp_norm_axis=-1,
                       amp_norm_type=model.norm),
         sbg.ChangeDtype(np.float32),
-        sbg.ProbabilisticLabeller(label_columns=get_phase_dict(),
+        sbg.ProbabilisticLabeller(label_columns=get_phase_dict(p_phase=parameters["p_phase"],
+                                                               s_phase=parameters["s_phase"]),
                                   sigma=parameters["sigma"],
                                   dim=0,
                                   model_labels=model.labels,
@@ -404,15 +407,21 @@ def test_model(model: seisbench.models.phasenet.PhaseNet,
 
     # Evaluate metrics for P and S
     # 1. Determine true positives (tp), false positives (fp), and false negatives (fn) for P and S phases
-    metrics_p = Metrics(predictions=picks_and_probs["pred_P"],
-                        true_pick_prob=parameters["true_pick_prob"],
-                        arrival_residual=parameters["arrival_residual"])
+    metrics_p = None
+    metrics_s = None
 
-    metrics_s = Metrics(predictions=picks_and_probs["pred_S"],
-                        true_pick_prob=parameters["true_pick_prob"],
-                        arrival_residual=parameters["arrival_residual"])
+    if parameters["p_phase"] is True:
+        metrics_p = Metrics(predictions=picks_and_probs["pred_P"],
+                            true_pick_prob=parameters["true_pick_prob"],
+                            arrival_residual=parameters["arrival_residual"])
+
+    if parameters["s_phase"] is True:
+        metrics_s = Metrics(predictions=picks_and_probs["pred_S"],
+                            true_pick_prob=parameters["true_pick_prob"],
+                            arrival_residual=parameters["arrival_residual"])
 
     # 2. Plot time arrival residuals for P and S
+    # TODO: Does not work yet for single phase models
     if plot_residual_histogram is True:
         # Get filename from parameters
         filename = parameters.get("filename")

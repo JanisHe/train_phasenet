@@ -61,15 +61,11 @@ def main(parfile):
                 msg = f"{e}\nDid not find {parameters['preload_model']}."
                 raise IOError(msg)
     else:
-        phases = parameters.get("phases")
-        if not phases:
-            phases = "PSN"
-
         # model = sbm.PhaseNet(phases=phases, norm="peak")
         # Create new instance of model if no model is previously loaded for transfer learning
-        model = sbm.VariableLengthPhaseNet(phases=phases,
+        model = sbm.VariableLengthPhaseNet(phases=parameters["phases"],
                                            in_samples=parameters["nsamples"],
-                                           classes=len(phases),
+                                           classes=len(parameters["phases"]),
                                            sampling_rate=parameters["sampling_rate"],
                                            in_channels=parameters["in_channels"],
                                            norm="peak",
@@ -116,7 +112,8 @@ def main(parfile):
     # Build augmentations and labels
     # Ensure that all phases are in requested window
     augmentations = [
-        sbg.WindowAroundSample(list(get_phase_dict().keys()),
+        sbg.WindowAroundSample(list(get_phase_dict(p_phase=parameters["p_phase"],
+                                                   s_phase=parameters["s_phase"]).keys()),
                                samples_before=int(0.8 * parameters["nsamples"]),
                                windowlen=int(1.5 * parameters["nsamples"]),
                                selection="first",
@@ -124,8 +121,12 @@ def main(parfile):
         sbg.RandomWindow(windowlen=parameters["nsamples"],
                          strategy="pad"),
         sbg.ProbabilisticLabeller(shape=parameters["labeler"],
-                                  label_columns=get_phase_dict(), sigma=parameters["sigma"],
-                                  dim=0, model_labels=model.labels, noise_column=True)
+                                  label_columns=get_phase_dict(p_phase=parameters["p_phase"],
+                                                               s_phase=parameters["s_phase"]),
+                                  sigma=parameters["sigma"],
+                                  dim=0,
+                                  model_labels=model.labels,
+                                  noise_column=True)
     ]
 
     if parameters.get("rotate") is True:
@@ -247,12 +248,14 @@ def main(parfile):
                                                   test_dataset=test,
                                                   plot_residual_histogram=False,
                                                   **parameters)
-                precision_p.append(metrics_p.precision)
-                precision_s.append(metrics_s.precision)
-                recalls_p.append(metrics_p.recall)
-                recalls_s.append(metrics_s.recall)
-                f1_p.append(metrics_p.f1_score)
-                f1_s.append(metrics_s.f1_score)
+                if parameters["p_phase"] is True:
+                    precision_p.append(metrics_p.precision)
+                    recalls_p.append(metrics_p.recall)
+                    f1_p.append(metrics_p.f1_score)
+                if parameters["s_phase"] is True:
+                    precision_s.append(metrics_s.precision)
+                    recalls_s.append(metrics_s.recall)
+                    f1_s.append(metrics_s.f1_score)
 
                 pbar.update()
 
@@ -262,10 +265,16 @@ def main(parfile):
         # Smallest distance represents the best threshold
         rp_p = np.array(list(zip(recalls_p, precision_p)))  # recall-precision array for P
         rp_s = np.array(list(zip(recalls_s, precision_s)))  # recall-precision array for S
-        best_threshold_p = best_threshold(recall_precision_array=rp_p,
-                                          thresholds=probs)
-        best_threshold_s = best_threshold(recall_precision_array=rp_s,
-                                          thresholds=probs)
+
+        # Set default values for best threshold in case of single phase model
+        best_threshold_p = 999
+        best_threshold_s = 999
+        if parameters["p_phase"] is True:
+            best_threshold_p = best_threshold(recall_precision_array=rp_p,
+                                              thresholds=probs)
+        if parameters["s_phase"] is True:
+            best_threshold_s = best_threshold(recall_precision_array=rp_s,
+                                              thresholds=probs)
 
         # Determining area under precision-recall curve
         # If recall is neither increasing nor decreasing AUC raises a ValueError and AUC is not determined. Therefore,
@@ -306,12 +315,19 @@ def main(parfile):
 
         # Plot metrics for P and S in one figure
         ax = fig_metrics.add_subplot(122)
-        ax.plot(probs, precision_p, color="blue", linestyle="-", label="Precision P")
-        ax.plot(probs, precision_s, color="blue", linestyle="--", label="Precision S")
-        ax.plot(probs, recalls_p, color="red", linestyle="-", label="Recall P")
-        ax.plot(probs, recalls_s, color="red", linestyle="--", label="Recall S")
-        ax.plot(probs, f1_p, color="black", linestyle="-", label="F1 P")
-        ax.plot(probs, f1_s, color="black", linestyle="--", label="F1 S")
+
+        # Plot curves for P
+        if parameters["p_phase"] is True:
+            ax.plot(probs, precision_p, color="blue", linestyle="-", label="Precision P")
+            ax.plot(probs, recalls_p, color="red", linestyle="-", label="Recall P")
+            ax.plot(probs, f1_p, color="black", linestyle="-", label="F1 P")
+
+        if parameters["s_phase"] is True:
+            ax.plot(probs, precision_s, color="blue", linestyle="--", label="Precision S")
+            ax.plot(probs, recalls_s, color="red", linestyle="--", label="Recall S")
+            ax.plot(probs, f1_s, color="black", linestyle="--", label="F1 S")
+
+        # Set labels
         ax.set_xlabel("True pick probability")
         ax.grid(visible=True)
         ax.legend()
