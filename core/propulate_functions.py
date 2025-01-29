@@ -263,7 +263,8 @@ def get_data_loaders(comm: MPI.Comm,
     # Build augmentations and labels
     # Ensure that all phases are in requested window
     augmentations = [
-        sbg.WindowAroundSample(list(get_phase_dict().keys()),
+        sbg.WindowAroundSample(list(get_phase_dict(p_phase=parameters["p_phase"],
+                                                   s_phase=parameters["s_phase"]).keys()),
                                samples_before=int(0.8 * parameters["nsamples"]),
                                windowlen=int(1.5 * parameters["nsamples"]),
                                selection="first",
@@ -271,7 +272,8 @@ def get_data_loaders(comm: MPI.Comm,
         sbg.RandomWindow(windowlen=parameters["nsamples"],
                          strategy="pad"),
         sbg.ProbabilisticLabeller(shape=parameters["labeler"],
-                                  label_columns=get_phase_dict(),
+                                  label_columns=get_phase_dict(p_phase=parameters["p_phase"],
+                                                               s_phase=parameters["s_phase"]),
                                   sigma=parameters["sigma"],
                                   dim=0,
                                   model_labels=model.labels,
@@ -401,8 +403,9 @@ def ind_loss(h_params: dict[str, int | float],
     os.sched_setaffinity(0, range(os.cpu_count()))
 
     # Load model
-    model = sbm.VariableLengthPhaseNet(phases="PSN",
+    model = sbm.VariableLengthPhaseNet(phases=parameters["phases"],
                                        in_samples=parameters["nsamples"],
+                                       classes=len(parameters["phases"]),
                                        norm="peak",
                                        stride=parameters["stride"],
                                        filter_factor=parameters["filter_factor"],
@@ -475,27 +478,43 @@ def ind_loss(h_params: dict[str, int | float],
             metrics_p, metrics_s = test_model(model=model.module,  # Since model is wrapped with DDP
                                               test_dataset=test,
                                               **parameters)
-            precision_p[index] = metrics_p.precision
-            precision_s[index] = metrics_s.precision
-            recalls_p[index] = metrics_p.recall
-            recalls_s[index] = metrics_s.recall
-            f1_p[index] = metrics_p.f1_score
-            f1_s[index] = metrics_s.f1_score
+
+            if metrics_p:
+                precision_p[index] = metrics_p.precision
+                recalls_p[index] = metrics_p.recall
+                f1_p[index] = metrics_p.f1_score
+            if metrics_s:
+                precision_s[index] = metrics_s.precision
+                recalls_s[index] = metrics_s.recall
+                f1_s[index] = metrics_s.f1_score
 
         # Determining best F1 score from netrics
-        f1_p_best = {"best_f1_p": np.max(f1_p),
-                     "idx": np.argmax(f1_p)}
-        f1_s_best = {"best_f1_s": np.max(f1_s),
-                     "idx": np.argmax(f1_s)}
+        if metrics_p:
+            f1_p_best = {"best_f1_p": np.max(f1_p),
+                         "idx": np.argmax(f1_p)}
+        if metrics_s:
+            f1_s_best = {"best_f1_s": np.max(f1_s),
+                         "idx": np.argmax(f1_s)}
 
         # test whether index of best f1 scores for P and S is greater than 0
         # Usually, if highest f1-score is close to a probability of zero, the best threshold for
         # P and S is close to zero
-        if f1_p_best["idx"] > 0 and f1_s_best["idx"] > 0:
-            avg_auc = 1 - np.average(a=[f1_p_best["best_f1_p"],
-                                        f1_s_best["best_f1_s"]])
-        else:
-            avg_auc = 1
+        if metrics_p and metrics_s:  # Overall average F1 score for P and S
+            if f1_p_best["idx"] > 0 and f1_s_best["idx"] > 0:
+                avg_auc = 1 - np.average(a=[f1_p_best["best_f1_p"],
+                                            f1_s_best["best_f1_s"]])
+            else:
+                avg_auc = 1
+        elif metrics_p and metrics_s is None:  # Single model for P phase
+            if f1_p_best["idx"] > 0:
+                avg_auc = 1 - f1_p_best["best_f1_p"]
+            else:
+                avg_auc = 1
+        elif metrics_p is None and metrics_s:  # Single model for S phase
+            if f1_s_best["idx"] > 0:
+                avg_auc = 1 - f1_s_best["best_f1_s"]
+            else:
+                avg_auc = 1
 
         # Determine area under precision-recall curve
         # If recall does not increasing or decreasing monotonically, then the model is not validated further and
@@ -503,10 +522,12 @@ def ind_loss(h_params: dict[str, int | float],
         # The following code block computes the area und the precision-recall curve to let propulate optimize on
         # this value
         try:
-            auc_p = auc(x=recalls_p,
-                        y=precision_p)
-            auc_s = auc(x=recalls_s,
-                        y=precision_s)
+            if metrics_p:
+                auc_p = auc(x=recalls_p,
+                            y=precision_p)
+            if metrics_s:
+                auc_s = auc(x=recalls_s,
+                            y=precision_s)
         except ValueError:   # recall is not monotonic increasing or monotonic decreasing
             avg_auc = 1
     else:
