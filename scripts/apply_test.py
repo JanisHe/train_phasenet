@@ -162,6 +162,14 @@ def probabilities(parfile,
     # Add sampling_rate from model to parameters
     parameters["sampling_rate"] = model.sampling_rate
 
+    # Add phases to parameters
+    parameters["p_phase"] = False
+    parameters["s_phase"] = False
+    if "P" in model.labels:
+        parameters["p_phase"] = True
+    if "S" in model.labels:
+        parameters["s_phase"] = True
+
     # Read datasets
     seisbench_dataset = read_datasets(parameters=parameters,
                                       dataset_key="datasets")
@@ -187,49 +195,58 @@ def probabilities(parfile,
                                               test_dataset=test,
                                               plot_residual_histogram=False,
                                               **parameters)
-            precisions_p.append(metrics_p.precision)
-            precisions_s.append(metrics_s.precision)
-            recalls_p.append(metrics_p.recall)
-            recalls_s.append(metrics_s.recall)
-            f1_p.append(metrics_p.f1_score)
-            f1_s.append(metrics_s.f1_score)
 
-            tp_p.append(metrics_p.true_positive)
-            fp_p.append(metrics_p.false_positive)
-            fn_p.append(metrics_p.false_negative)
-            tp_s.append(metrics_s.true_positive)
-            fp_s.append(metrics_s.false_positive)
-            fn_s.append(metrics_s.false_negative)
+            if metrics_p:
+                precisions_p.append(metrics_p.precision)
+                recalls_p.append(metrics_p.recall)
+                f1_p.append(metrics_p.f1_score)
+                tp_p.append(metrics_p.true_positive)
+                fp_p.append(metrics_p.false_positive)
+                fn_p.append(metrics_p.false_negative)
+
+            if metrics_s:
+                precisions_s.append(metrics_s.precision)
+                recalls_s.append(metrics_s.recall)
+                f1_s.append(metrics_s.f1_score)
+                tp_s.append(metrics_s.true_positive)
+                fp_s.append(metrics_s.false_positive)
+                fn_s.append(metrics_s.false_negative)
 
             pbar.update()
 
     # Finding the best thresholds for P and S from precision-recall curve
     # Determining distances of each precision-recall pair to point (1, 1)
     # Smallest distance represents the best threshold
-    rp_p = np.array(list(zip(recalls_p, precisions_p)))  # recall-precision array for P
-    rp_s = np.array(list(zip(recalls_s, precisions_s)))  # recall-precision array for S
-    best_threshold_p = best_threshold(recall_precision_array=rp_p,
-                                      thresholds=probs)
-    best_threshold_s = best_threshold(recall_precision_array=rp_s,
-                                      thresholds=probs)
-
-    # Determining area under precision-recall curve
-    try:
-        auc_p = auc(x=recalls_p,
-                    y=precisions_p)
-    except ValueError:
-        auc_p = 999
-    try:
-        auc_s = auc(x=recalls_s,
-                    y=precisions_s)
-    except ValueError:
-        auc_s = 999
+    best_threshold_p = 999  # Default values, required for single phase models
+    best_threshold_s = 999
+    if metrics_p:
+        rp_p = np.array(list(zip(recalls_p, precisions_p)))  # recall-precision array for P
+        best_threshold_p = best_threshold(recall_precision_array=rp_p,
+                                          thresholds=probs)
+        try:  # Determining area under precision-recall curve for P
+            auc_p = auc(x=recalls_p,
+                        y=precisions_p)
+        except ValueError:
+            auc_p = 999
+    if metrics_s:
+        rp_s = np.array(list(zip(recalls_s, precisions_s)))  # recall-precision array for S
+        best_threshold_s = best_threshold(recall_precision_array=rp_s,
+                                          thresholds=probs)
+        try:  # Determining area under precision-recall curve for S
+            auc_s = auc(x=recalls_s,
+                        y=precisions_s)
+        except ValueError:
+            auc_s = 999
 
     # Plot
     fig= plt.figure(figsize=(11, 5))
     ax_pr = fig.add_subplot(121)
-    ax_pr.plot(recalls_p, precisions_p, label=f"P (AUC: {auc_p:.2f}")
-    ax_pr.plot(recalls_s, precisions_s, label=f"S (AUC: {auc_s:.2f}")
+    if metrics_p:
+        ax_pr.plot(recalls_p, precisions_p, label=f"P (AUC: {auc_p:.2f}")
+
+    if metrics_s:
+        ax_pr.plot(recalls_s, precisions_s, label=f"S (AUC: {auc_s:.2f}")
+
     ax_pr.legend()
     ax_pr.grid(visible=True)
     ax_pr.set_xlabel("Recall")
@@ -254,12 +271,15 @@ def probabilities(parfile,
     #                s=str(np.round(prob, 2)))
 
     ax = fig.add_subplot(122)
-    ax.plot(probs, precisions_p, color="blue", linestyle="-", label="Precision P")
-    ax.plot(probs, precisions_s, color="blue", linestyle="--", label="Precision S")
-    ax.plot(probs, recalls_p, color="red", linestyle="-", label="Recall P")
-    ax.plot(probs, recalls_s, color="red", linestyle="--", label="Recall S")
-    ax.plot(probs, f1_p, color="black", linestyle="-", label="F1 P")
-    ax.plot(probs, f1_s, color="black", linestyle="--", label="F1 S")
+    if metrics_p:
+        ax.plot(probs, precisions_p, color="blue", linestyle="-", label="Precision P")
+        ax.plot(probs, recalls_p, color="red", linestyle="-", label="Recall P")
+        ax.plot(probs, f1_p, color="black", linestyle="-", label="F1 P")
+    if metrics_s:
+        ax.plot(probs, precisions_s, color="blue", linestyle="--", label="Precision S")
+        ax.plot(probs, recalls_s, color="red", linestyle="--", label="Recall S")
+        ax.plot(probs, f1_s, color="black", linestyle="--", label="F1 S")
+
     ax.set_ylim(0.25, 1.05)
     ax.set_xlim(0, 1)
     ax.set_xlabel("Pick threshold")
