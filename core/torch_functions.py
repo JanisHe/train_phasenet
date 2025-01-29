@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 import seisbench.data as sbd  # noqa
 import seisbench.models as sbm # noqa
 import seisbench.generate as sbg # noqa
-from pyrocko.squirrel.base import nonef
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 from seisbench.util import worker_seeding # noqa
