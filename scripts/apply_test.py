@@ -242,10 +242,10 @@ def probabilities(parfile,
     fig= plt.figure(figsize=(11, 5))
     ax_pr = fig.add_subplot(121)
     if metrics_p:
-        ax_pr.plot(recalls_p, precisions_p, label=f"P (AUC: {auc_p:.2f}")
+        ax_pr.plot(recalls_p, precisions_p, label=f"P (AUC: {auc_p:.2f})")
 
     if metrics_s:
-        ax_pr.plot(recalls_s, precisions_s, label=f"S (AUC: {auc_s:.2f}")
+        ax_pr.plot(recalls_s, precisions_s, label=f"S (AUC: {auc_s:.2f})")
 
     ax_pr.legend()
     ax_pr.grid(visible=True)

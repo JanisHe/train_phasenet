@@ -293,8 +293,8 @@ def main(parfile):
 
         fig_metrics = plt.figure(figsize=(11, 5))
         ax_pr = fig_metrics.add_subplot(121)
-        ax_pr.plot(recalls_p, precision_p, label=f"P (AUC: {auc_p:.2f}")
-        ax_pr.plot(recalls_s, precision_s, label=f"S (AUC: {auc_s:.2f}")
+        ax_pr.plot(recalls_p, precision_p, label=f"P (AUC: {auc_p:.2f})")
+        ax_pr.plot(recalls_s, precision_s, label=f"S (AUC: {auc_s:.2f})")
         ax_pr.legend()
         ax_pr.grid(visible=True)
         ax_pr.set_xlabel("Recall")
