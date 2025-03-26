@@ -691,7 +691,10 @@ def check_propulate_limits(params: dict) -> dict:
             if len(value) == 1:
                 params[key] = tuple([value[0], value[0]])
         elif isinstance(value, list):
-            params[key] = tuple(value)
+            if len(value) == 1:
+                params[key] = tuple([value[0], value[0]])
+            else:
+                params[key] = tuple(value)
         else:
             params[key] = tuple([value, value])
 
@@ -707,3 +710,14 @@ def best_threshold(recall_precision_array: np.ndarray,
 
     # Return probability for minimum of distances
     return thresholds[np.argmin(distances)]
+
+
+if __name__ == "__main__":
+    params = {
+        "learning_rate": [0.01],
+        "batch_size": [8, 16, 32, 64],
+        "activation_function": ["relu", "elu"],
+    }
+
+    limits = check_propulate_limits(params=params)
+    print(limits)
