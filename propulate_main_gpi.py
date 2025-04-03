@@ -1,7 +1,3 @@
-"""
-Funktioniert leider nicht auf HPC GPI (Warum, weiss ich nicht)
-"""
-
 import os
 import sys
 import pathlib
