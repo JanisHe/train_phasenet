@@ -15,6 +15,8 @@ from seisbench.util import worker_seeding # noqa
 from seisbench.models.phasenet import PhaseNet # noqa
 from torch.utils.data import DataLoader
 from sklearn.metrics import auc
+from obspy.clients.fdsn import Client as FDSNClient
+from obspy.clients.filesystem.sds import Client as SDSClient
 
 from core.torch_functions import VectorCrossEntropyLoss, test_model, EarlyStopping
 from core.utils import read_datasets, add_fake_events, get_phase_dict, check_parameters
@@ -389,9 +391,9 @@ def ind_loss(h_params: dict[str, int | float]) -> float:
     # Testing the model on continuous data with a given seismicity catalogue
     # Read / create obspy client
     if "http" in parameters["client"]:
-        client = obspy.clients.fdsn.Client(parameters["client"])
+        client = FDSNClient(parameters["client"])
     else:
-        client = obspy.clients.filesystem.sds.Client(parameters["client"])
+        client = SDSClient(parameters["client"])
 
     # Read seismicity catalogue
     catalog = obspy.read_events(parameters["catalog"])

@@ -17,6 +17,8 @@ import matplotlib.pyplot as plt
 from matplotlib.offsetbox import AnchoredText
 from typing import Union
 from sklearn.metrics import auc
+from obspy.clients.fdsn import Client as FDSNClient
+from obspy.clients.filesystem.sds import Client as SDSClient
 
 from core.utils import is_nan, read_datasets, get_phase_dict, get_picks, best_threshold, event_picks, load_stations
 from core.torch_functions import test_model
@@ -316,7 +318,7 @@ def test_on_catalog(model: seisbench.models.phasenet.PhaseNet,
                     station_json: str,
                     starttime: obspy.UTCDateTime,
                     endtime: obspy.UTCDateTime,
-                    client: Union[obspy.clients.fdsn.Client, obspy.clients.filesystem.sds.Client],
+                    client: Union[FDSNClient, SDSClient],
                     residual: float = 0.3,
                     verbose: bool = False):
     """
