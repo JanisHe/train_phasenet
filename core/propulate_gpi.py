@@ -361,31 +361,6 @@ def ind_loss(h_params: dict[str, int | float]) -> float:
     # else:
     #     avg_auc = 1
     #
-    # # Save model if avg_auc is not 1000
-    # if avg_auc < 1:
-    #     filename = f"{pathlib.Path(h_params['parfile']).stem}_{avg_auc:.5f}.pt"
-    #     try:
-    #         if os.path.isfile(path=os.path.join(parameters["checkpoint_path"], "models")) is False:
-    #             os.makedirs(os.path.join(parameters["checkpoint_path"], "models"))
-    #     except FileExistsError:
-    #         pass
-    #     torch.save(obj=model,
-    #                f=os.path.join(parameters["checkpoint_path"], "models", filename))
-    #
-    #     # Write out parameters for successull tested model
-    #     with open(os.path.join(parameters["checkpoint_path"], "tested_models"), "a") as f:
-    #         f.write("##################################\n")
-    #         for key, item in parameters.items():
-    #             f.write(f"{key}: {item}\n")
-    #         f.write(f"Avg. AUCPR: {avg_auc:.5f}\n")
-    #         f.write(f'model_filename: {os.path.join(parameters["checkpoint_path"], "models", filename)}\n')
-    #         f.write("##################################\n")
-    # else:  # Write parameters into file, where not fitting model parameters are stored
-    #     with open(os.path.join(parameters["checkpoint_path"], "failed_models"), "a") as f:
-    #         f.write("##################################\n")
-    #         for key, item in parameters.items():
-    #             f.write(f"{key}: {item}\n")
-    #         f.write("##################################\n")
 
 
     # Testing the model on continuous data with a given seismicity catalogue
@@ -414,6 +389,32 @@ def ind_loss(h_params: dict[str, int | float]) -> float:
                                                                blinding=[blinding, blinding])
 
     # Calculate average metric (here F1 score for P and S)
-    avg_auc = np.average(a=[f1_p, f1_s])
+    avg_auc = 1 - np.average(a=[f1_p, f1_s])
+
+    # Save model if avg_auc is not 1000
+    if avg_auc < 1:
+        filename = f"{pathlib.Path(h_params['parfile']).stem}_{avg_auc:.5f}.pt"
+        try:
+            if os.path.isfile(path=os.path.join(parameters["checkpoint_path"], "models")) is False:
+                os.makedirs(os.path.join(parameters["checkpoint_path"], "models"))
+        except FileExistsError:
+            pass
+        torch.save(obj=model,
+                   f=os.path.join(parameters["checkpoint_path"], "models", filename))
+
+        # Write out parameters for successull tested model
+        with open(os.path.join(parameters["checkpoint_path"], "tested_models"), "a") as f:
+            f.write("##################################\n")
+            for key, item in parameters.items():
+                f.write(f"{key}: {item}\n")
+            f.write(f"Avg. AUCPR: {avg_auc:.5f}\n")
+            f.write(f'model_filename: {os.path.join(parameters["checkpoint_path"], "models", filename)}\n')
+            f.write("##################################\n")
+    else:  # Write parameters into file, where not fitting model parameters are stored
+        with open(os.path.join(parameters["checkpoint_path"], "failed_models"), "a") as f:
+            f.write("##################################\n")
+            for key, item in parameters.items():
+                f.write(f"{key}: {item}\n")
+            f.write("##################################\n")
 
     return avg_auc
