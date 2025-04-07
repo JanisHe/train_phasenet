@@ -320,7 +320,11 @@ def test_on_catalog(model: seisbench.models.phasenet.PhaseNet,
                     endtime: obspy.UTCDateTime,
                     client: Union[FDSNClient, SDSClient],
                     residual: float = 0.3,
-                    verbose: bool = False):
+                    verbose: bool = False,
+                    P_threshold: float = 0.2,
+                    S_threshold: float = 0.2,
+                    overlap: int = 2500,
+                    blinding: list = [250, 250]):
     """
     Testing a fully trained PhaseNet model on picks from a seismicity catalogue.
     """
@@ -365,10 +369,10 @@ def test_on_catalog(model: seisbench.models.phasenet.PhaseNet,
                                       endtime=endtime)
 
         sb_picks = model.classify(stream,
-                                  P_threshold=0.2,
-                                  S_threshold=0.2,
-                                  blinding=[250, 250],
-                                  overlap=2500)
+                                  P_threshold=P_threshold,
+                                  S_threshold=S_threshold,
+                                  blinding=blinding,
+                                  overlap=overlap)
 
         # Number of detected picks by SeisBench
         total_p = 0

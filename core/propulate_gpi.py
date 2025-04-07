@@ -398,6 +398,10 @@ def ind_loss(h_params: dict[str, int | float]) -> float:
     # Read seismicity catalogue
     catalog = obspy.read_events(parameters["catalog"])
 
+    # Determine parameters for classificiation of model with SeisBench classify
+    overlap = int(parameters["nsamples"] * 0.8)  # 80 % overlap
+    blinding = int(parameters["nsamples"] * 0.1)  # 10 % blinding
+
     prec_p, prec_s, rec_p, rec_s, f1_p, f1_s = test_on_catalog(model=model,
                                                                catalog=catalog,
                                                                station_json=parameters["station_json"],
@@ -405,7 +409,9 @@ def ind_loss(h_params: dict[str, int | float]) -> float:
                                                                endtime=obspy.UTCDateTime(parameters["endtime"]),
                                                                client=client,
                                                                residual=0.3,
-                                                               verbose=True)
+                                                               verbose=True,
+                                                               overlap=overlap,
+                                                               blinding=[blinding, blinding])
 
     # Calculate average metric (here F1 score for P and S)
     avg_auc = np.average(a=[f1_p, f1_s])
