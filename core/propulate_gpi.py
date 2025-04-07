@@ -2,6 +2,7 @@ import os
 import pathlib
 
 import numpy as np
+import obspy.clients.fdsn
 import torch
 import seisbench  # noqa
 import logging
@@ -17,6 +18,7 @@ from sklearn.metrics import auc
 
 from core.torch_functions import VectorCrossEntropyLoss, test_model, EarlyStopping
 from core.utils import read_datasets, add_fake_events, get_phase_dict, check_parameters
+from scripts.apply_test import test_on_catalog
 
 
 GPUS_PER_NODE: int = 4  # This example script was tested on a single node with 4 GPUs.
@@ -281,107 +283,128 @@ def ind_loss(h_params: dict[str, int | float]) -> float:
                                                         lr_scheduler=None,
                                                         trace_func=log.info)
 
-    # Instead of return the average loss value, the model is evaluated and precision, recall and
-    # F1-score are determined for different probabilities
-    # Add parameters for testing each model
-    parameters["arrival_residual"] = 30
-    parameters["win_len_factor"] = 10
+    # # Instead of return the average loss value, the model is evaluated and precision, recall and
+    # # F1-score are determined for different probabilities
+    # # Add parameters for testing each model
+    # parameters["arrival_residual"] = 30
+    # parameters["win_len_factor"] = 10
+    #
+    # # Only test and save model for rank 0 since gradients are synchronized in backward passes
+    # if model:
+    #     log.info("Testing model on test dataset")
+    #     probs = np.linspace(start=1e-3,
+    #                         stop=1,
+    #                         num=20)
+    #     precision_p, precision_s = np.zeros(len(probs)), np.zeros(len(probs))
+    #     recalls_p, recalls_s = np.zeros(len(probs)), np.zeros(len(probs))
+    #     f1_p, f1_s = np.zeros(len(probs)), np.zeros(len(probs))
+    #     for index, prob in enumerate(probs):
+    #         parameters["true_pick_prob"] = prob
+    #
+    #         metrics_p, metrics_s = test_model(model=model,
+    #                                           test_dataset=test,
+    #                                           **parameters)
+    #
+    #         if metrics_p:
+    #             precision_p[index] = metrics_p.precision
+    #             recalls_p[index] = metrics_p.recall
+    #             f1_p[index] = metrics_p.f1_score
+    #         if metrics_s:
+    #             precision_s[index] = metrics_s.precision
+    #             recalls_s[index] = metrics_s.recall
+    #             f1_s[index] = metrics_s.f1_score
+    #
+    #     # Determining best F1 score from netrics
+    #     if metrics_p:
+    #         f1_p_best = {"best_f1_p": np.max(f1_p),
+    #                      "idx": np.argmax(f1_p)}
+    #     if metrics_s:
+    #         f1_s_best = {"best_f1_s": np.max(f1_s),
+    #                      "idx": np.argmax(f1_s)}
+    #
+    #     # test whether index of best f1 scores for P and S is greater than 0
+    #     # Usually, if highest f1-score is close to a probability of zero, the best threshold for
+    #     # P and S is close to zero
+    #     if metrics_p and metrics_s:  # Overall average F1 score for P and S
+    #         if f1_p_best["idx"] > 0 and f1_s_best["idx"] > 0:
+    #             avg_auc = 1 - np.average(a=[f1_p_best["best_f1_p"],
+    #                                         f1_s_best["best_f1_s"]])
+    #         else:
+    #             avg_auc = 1
+    #     elif metrics_p and metrics_s is None:  # Single model for P phase
+    #         if f1_p_best["idx"] > 0:
+    #             avg_auc = 1 - f1_p_best["best_f1_p"]
+    #         else:
+    #             avg_auc = 1
+    #     elif metrics_p is None and metrics_s:  # Single model for S phase
+    #         if f1_s_best["idx"] > 0:
+    #             avg_auc = 1 - f1_s_best["best_f1_s"]
+    #         else:
+    #             avg_auc = 1
+    #
+    #     # Determine area under precision-recall curve
+    #     # If recall does not increasing or decreasing monotonically, then the model is not validated further and
+    #     # the average AUCPR is set to 1000, which is the value propulate optimizes for.
+    #     # The following code block computes the area und the precision-recall curve to let propulate optimize on
+    #     # this value
+    #     try:
+    #         if metrics_p:
+    #             auc_p = auc(x=recalls_p,
+    #                         y=precision_p)
+    #         if metrics_s:
+    #             auc_s = auc(x=recalls_s,
+    #                         y=precision_s)
+    #     except ValueError:  # recall is not monotonic increasing or monotonic decreasing
+    #         avg_auc = 1
+    # else:
+    #     avg_auc = 1
+    #
+    # # Save model if avg_auc is not 1000
+    # if avg_auc < 1:
+    #     filename = f"{pathlib.Path(h_params['parfile']).stem}_{avg_auc:.5f}.pt"
+    #     try:
+    #         if os.path.isfile(path=os.path.join(parameters["checkpoint_path"], "models")) is False:
+    #             os.makedirs(os.path.join(parameters["checkpoint_path"], "models"))
+    #     except FileExistsError:
+    #         pass
+    #     torch.save(obj=model,
+    #                f=os.path.join(parameters["checkpoint_path"], "models", filename))
+    #
+    #     # Write out parameters for successull tested model
+    #     with open(os.path.join(parameters["checkpoint_path"], "tested_models"), "a") as f:
+    #         f.write("##################################\n")
+    #         for key, item in parameters.items():
+    #             f.write(f"{key}: {item}\n")
+    #         f.write(f"Avg. AUCPR: {avg_auc:.5f}\n")
+    #         f.write(f'model_filename: {os.path.join(parameters["checkpoint_path"], "models", filename)}\n')
+    #         f.write("##################################\n")
+    # else:  # Write parameters into file, where not fitting model parameters are stored
+    #     with open(os.path.join(parameters["checkpoint_path"], "failed_models"), "a") as f:
+    #         f.write("##################################\n")
+    #         for key, item in parameters.items():
+    #             f.write(f"{key}: {item}\n")
+    #         f.write("##################################\n")
 
-    # Only test and save model for rank 0 since gradients are synchronized in backward passes
-    # TODO: Probably something still does not work with unwrapping the model
-    if model:
-        log.info("Testing model on test dataset")
-        probs = np.linspace(start=1e-3,
-                            stop=1,
-                            num=20)
-        precision_p, precision_s = np.zeros(len(probs)), np.zeros(len(probs))
-        recalls_p, recalls_s = np.zeros(len(probs)), np.zeros(len(probs))
-        f1_p, f1_s = np.zeros(len(probs)), np.zeros(len(probs))
-        for index, prob in enumerate(probs):
-            parameters["true_pick_prob"] = prob
 
-            metrics_p, metrics_s = test_model(model=model,
-                                              test_dataset=test,
-                                              **parameters)
-
-            if metrics_p:
-                precision_p[index] = metrics_p.precision
-                recalls_p[index] = metrics_p.recall
-                f1_p[index] = metrics_p.f1_score
-            if metrics_s:
-                precision_s[index] = metrics_s.precision
-                recalls_s[index] = metrics_s.recall
-                f1_s[index] = metrics_s.f1_score
-
-        # Determining best F1 score from netrics
-        if metrics_p:
-            f1_p_best = {"best_f1_p": np.max(f1_p),
-                         "idx": np.argmax(f1_p)}
-        if metrics_s:
-            f1_s_best = {"best_f1_s": np.max(f1_s),
-                         "idx": np.argmax(f1_s)}
-
-        # test whether index of best f1 scores for P and S is greater than 0
-        # Usually, if highest f1-score is close to a probability of zero, the best threshold for
-        # P and S is close to zero
-        if metrics_p and metrics_s:  # Overall average F1 score for P and S
-            if f1_p_best["idx"] > 0 and f1_s_best["idx"] > 0:
-                avg_auc = 1 - np.average(a=[f1_p_best["best_f1_p"],
-                                            f1_s_best["best_f1_s"]])
-            else:
-                avg_auc = 1
-        elif metrics_p and metrics_s is None:  # Single model for P phase
-            if f1_p_best["idx"] > 0:
-                avg_auc = 1 - f1_p_best["best_f1_p"]
-            else:
-                avg_auc = 1
-        elif metrics_p is None and metrics_s:  # Single model for S phase
-            if f1_s_best["idx"] > 0:
-                avg_auc = 1 - f1_s_best["best_f1_s"]
-            else:
-                avg_auc = 1
-
-        # Determine area under precision-recall curve
-        # If recall does not increasing or decreasing monotonically, then the model is not validated further and
-        # the average AUCPR is set to 1000, which is the value propulate optimizes for.
-        # The following code block computes the area und the precision-recall curve to let propulate optimize on
-        # this value
-        try:
-            if metrics_p:
-                auc_p = auc(x=recalls_p,
-                            y=precision_p)
-            if metrics_s:
-                auc_s = auc(x=recalls_s,
-                            y=precision_s)
-        except ValueError:  # recall is not monotonic increasing or monotonic decreasing
-            avg_auc = 1
+    # Testing the model on continuous data with a given seismicity catalogue
+    # Read / create obspy client
+    if "http" in parameters["client"]:
+        client = obspy.clients.fdsn.Client(parameters["client"])
     else:
-        avg_auc = 1
+        client = obspy.clients.filesystem.sds.Client(parameters["client"])
 
-    # Save model if avg_auc is not 1000
-    if avg_auc < 1:
-        filename = f"{pathlib.Path(h_params['parfile']).stem}_{avg_auc:.5f}.pt"
-        try:
-            if os.path.isfile(path=os.path.join(parameters["checkpoint_path"], "models")) is False:
-                os.makedirs(os.path.join(parameters["checkpoint_path"], "models"))
-        except FileExistsError:
-            pass
-        torch.save(obj=model,
-                   f=os.path.join(parameters["checkpoint_path"], "models", filename))
+    # Read seismicity catalogue
+    catalog = obspy.read_events(parameters["catalog"])
 
-        # Write out parameters for successull tested model
-        with open(os.path.join(parameters["checkpoint_path"], "tested_models"), "a") as f:
-            f.write("##################################\n")
-            for key, item in parameters.items():
-                f.write(f"{key}: {item}\n")
-            f.write(f"Avg. AUCPR: {avg_auc:.5f}\n")
-            f.write(f'model_filename: {os.path.join(parameters["checkpoint_path"], "models", filename)}\n')
-            f.write("##################################\n")
-    else:  # Write parameters into file, where not fitting model parameters are stored
-        with open(os.path.join(parameters["checkpoint_path"], "failed_models"), "a") as f:
-            f.write("##################################\n")
-            for key, item in parameters.items():
-                f.write(f"{key}: {item}\n")
-            f.write("##################################\n")
+    prec_p, prec_s, rec_p, rec_s, f1_p, f1_s = test_on_catalog(model=model,
+                                                               catalog=catalog,
+                                                               station_json=parameters["station_json"],
+                                                               starttime=parameters["starttime"],
+                                                               endtime=parameters["endtime"],
+                                                               residual=0.3,
+                                                               verbose=True)
+
+    # Calculate average metric (here F1 score for P and S)
+    avg_auc = np.average(a=[f1_p, f1_s])
 
     return avg_auc

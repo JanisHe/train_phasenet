@@ -1,11 +1,14 @@
 import os
 import pathlib
+
+import obspy
 import tqdm
 
 import numpy as np
 import torch
 import yaml
 from torch.utils.data import DataLoader
+import seisbench  # noqa
 import seisbench.models as sbm  # noqa
 import seisbench.generate as sbg # noqa
 import seisbench.data as sbd  # noqa
@@ -15,7 +18,7 @@ from matplotlib.offsetbox import AnchoredText
 from typing import Union
 from sklearn.metrics import auc
 
-from core.utils import is_nan, read_datasets, get_phase_dict, get_picks, best_threshold
+from core.utils import is_nan, read_datasets, get_phase_dict, get_picks, best_threshold, event_picks, load_stations
 from core.torch_functions import test_model
 
 
@@ -223,6 +226,9 @@ def probabilities(parfile,
         rp_p = np.array(list(zip(recalls_p, precisions_p)))  # recall-precision array for P
         best_threshold_p = best_threshold(recall_precision_array=rp_p,
                                           thresholds=probs)
+
+        f1_p_best = {"best_f1_p": np.max(f1_p),
+                     "idx": np.argmax(f1_p)}
         try:  # Determining area under precision-recall curve for P
             auc_p = auc(x=recalls_p,
                         y=precisions_p)
@@ -232,6 +238,9 @@ def probabilities(parfile,
         rp_s = np.array(list(zip(recalls_s, precisions_s)))  # recall-precision array for S
         best_threshold_s = best_threshold(recall_precision_array=rp_s,
                                           thresholds=probs)
+
+        f1_s_best = {"best_f1_s": np.max(f1_s),
+                     "idx": np.argmax(f1_s)}
         try:  # Determining area under precision-recall curve for S
             auc_s = auc(x=recalls_s,
                         y=precisions_s)
@@ -280,6 +289,16 @@ def probabilities(parfile,
         ax.plot(probs, recalls_s, color="red", linestyle="--", label="Recall S")
         ax.plot(probs, f1_s, color="black", linestyle="--", label="F1 S")
 
+    text_box = AnchoredText(s=f"F1 P: {f1_p_best['best_f1_p']:.2f}\n"
+                              f"F1 S {f1_s_best['best_f1_s']:.2f}",
+                            frameon=False,
+                            loc="upper center",
+                            pad=0.5)
+    plt.setp(text_box.patch,
+             facecolor='white',
+             alpha=0.5)
+    ax.add_artist(text_box)
+
     ax.set_ylim(0.25, 1.05)
     ax.set_xlim(0, 1)
     ax.set_xlabel("Pick threshold")
@@ -290,6 +309,133 @@ def probabilities(parfile,
 
     plt.tight_layout()
     plt.savefig(f"./metrics/probabilities_{parameters['filename']}.svg")
+
+
+def test_on_catalog(model: seisbench.models.phasenet.PhaseNet,
+                    catalog: obspy.Catalog,
+                    station_json: str,
+                    starttime: obspy.UTCDateTime,
+                    endtime: obspy.UTCDateTime,
+                    client: Union[obspy.clients.fdsn.Client, obspy.clients.filesystem.sds.Client],
+                    residual: float = 0.3,
+                    verbose: bool = False):
+    """
+    Testing a fully trained PhaseNet model on picks from a seismicity catalogue.
+    """
+    # Load stations from station_json
+    stations = load_stations(station_json=station_json)
+
+    # Gather all picks from catalogue
+    all_picks = {}
+    for event in catalog:
+        picks = event_picks(event=event)
+        for station_picks in picks.keys():
+            for phase in picks[station_picks].keys():
+                if station_picks not in all_picks.keys():
+                    all_picks.update({station_picks: {"P": [], "S": []}})
+
+                if phase.lower() in ["pg", "pn", "p"]:
+                    phase_dict = "P"
+                elif phase.lower() in ["sg", "sn", "s"]:
+                    phase_dict = "S"
+                all_picks[station_picks][phase_dict].append(picks[station_picks][phase])
+
+    # Loop over each station
+    f1_list_p = []
+    f1_list_s = []
+    precision_list_p = []
+    precision_list_s = []
+    recall_list_p = []
+    recall_list_s = []
+    for station_id in stations["id"]:
+        network, station, location = station_id.split(".")
+
+        # Test whether station_id is in all_picks, otherwise continue with next station
+        if station_id not in all_picks.keys():
+            continue
+
+        # Load stream and predict picks
+        stream = client.get_waveforms(station=station,
+                                      network=network,
+                                      location=location,
+                                      channel="*",
+                                      starttime=starttime,
+                                      endtime=endtime)
+
+        sb_picks = model.classify(stream,
+                                  P_threshold=0.2,
+                                  S_threshold=0.2,
+                                  blinding=[250, 250],
+                                  overlap=2500)
+
+        # Number of detected picks by SeisBench
+        total_p = 0
+        total_s = 0
+        for pick in sb_picks.picks:
+            if pick.phase == "P":
+                total_p += 1
+            elif pick.phase == "S":
+                total_s += 1
+
+        # Detect true positive picks by looping over all picks from catalogue for station
+        correct_p = 0
+        correct_s = 0
+        for phase, peak_times in all_picks[station_id].items():
+            for peak_time in peak_times:  # loop over all arrival times in catalogue for phase
+                for sbpick_idx, pick in enumerate(sb_picks.picks):
+                    if pick.peak_time - residual <= peak_time <= pick.peak_time + residual:
+                        if phase == "P":
+                            correct_p += 1
+                            # Remove pick from sb_picks.picks
+                            sb_picks.picks.pop(sbpick_idx)
+                        elif phase == "S":
+                            correct_s += 1
+                            # Remove pick from sb_picks.picks
+                            sb_picks.picks.pop(sbpick_idx)
+
+        # Calculate precision, recall and f1
+        # True positives: Picks detected by SeisBench that are also in catalogue
+        # False positives: Picks detected by SeisBench but not in catalogue (could be new picks)
+        # False negatives: Number of picks that have been not picked by SeisBench
+        tp_p = correct_p  # True positive P
+        tp_s = correct_s  # True positive S
+        fp_p = total_p - correct_p
+        fp_s = total_s - correct_s
+        fn_p = len(all_picks[station_id]["P"]) - tp_p
+        fn_s = len(all_picks[station_id]["S"]) - tp_s
+
+        # Check whether fp_p + fp_s = len(sb_picks.picks)
+        if fp_p + fp_s != len(sb_picks.picks):
+            raise ValueError("Something is wrong with the picks")
+
+        precision_p = tp_p / (tp_p + fp_p + 1e-12)
+        precision_s = tp_s / (tp_s + fp_s + 1e-12)
+        recall_p = tp_p / (tp_p + fn_p + 1e-12)
+        recall_s = tp_s / (tp_s + fn_s + 1e-12)
+        f1_p = 2 * ((precision_p * recall_p) / (precision_p + recall_p + 1e-12))
+        f1_s = 2 * ((precision_s * recall_s) / (precision_s + recall_s + 1e-12))
+
+        precision_list_p.append(precision_p)
+        precision_list_s.append(precision_s)
+        recall_list_p.append(recall_p)
+        recall_list_s.append(recall_s)
+        f1_list_p.append(f1_p)
+        f1_list_s.append(f1_s)
+
+        if verbose is True:
+            print(f"{station_id}\n"
+                  f"Prec P: {precision_p:2f}  Rec P: {recall_p:2f}  F1 P: {f1_p:2f}\n"
+                  f"Prec S: {precision_s:2f}  Rec S: {recall_s:2f}  F1 S: {f1_s:2f}\n")
+
+    # Calculate average of each metric
+    prec_p = np.average(precision_list_p)
+    prec_s = np.average(precision_list_s)
+    rec_p = np.average(recall_list_p)
+    rec_s = np.average(recall_list_s)
+    f1_p = np.average(f1_list_p)
+    f1_s = np.average(f1_list_s)
+
+    return prec_p, prec_s, rec_p, rec_s, f1_p, f1_s
 
 
 def compare_models(models: dict, datasets: list, colors: Union[list, None] = None):

@@ -1,6 +1,7 @@
 import os
 import subprocess
 import pathlib
+import json
 
 import numpy as np
 import pandas as pd
@@ -126,6 +127,54 @@ def get_picks(event):
             pass
 
     return pick_dict(event.picks)
+
+
+def event_picks(event):
+    """
+
+    :param event:
+    :return:
+    """
+    picks = {}
+    for pick in event.picks:
+        id = f"{pick.waveform_id.network_code}.{pick.waveform_id.station_code}.{pick.waveform_id.location_code}"
+        if id in picks.keys():
+            picks[id].update({pick["phase_hint"]: pick["time"]})
+        else:
+            picks.update({id: {pick["phase_hint"]: pick["time"]}})
+
+    return picks
+
+
+def convert_station_json(stations: dict) -> pd.DataFrame:
+    """
+
+    :param stations:
+    :return:
+    """
+    station_df = []
+    for station in stations.keys():
+        station_df.append(
+            {"id": station,
+             "latitude": stations[station]["coords"][0],
+             "longitude": stations[station]["coords"][1],
+             "elevation": stations[station]["coords"][2]}
+        )
+
+    return pd.DataFrame(station_df)
+
+
+def load_stations(station_json: str):
+    """
+
+    :param station_json:
+    :return:
+    """
+    with open(station_json) as f_json:
+        stations = json.load(f_json)
+        stations = convert_station_json(stations)
+
+    return stations
 
 
 def sort_event_list(event_list):
