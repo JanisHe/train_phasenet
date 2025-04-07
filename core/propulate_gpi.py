@@ -401,8 +401,8 @@ def ind_loss(h_params: dict[str, int | float]) -> float:
     prec_p, prec_s, rec_p, rec_s, f1_p, f1_s = test_on_catalog(model=model,
                                                                catalog=catalog,
                                                                station_json=parameters["station_json"],
-                                                               starttime=parameters["starttime"],
-                                                               endtime=parameters["endtime"],
+                                                               starttime=obspy.UTCDateTime(parameters["starttime"]),
+                                                               endtime=obspy.UTCDateTime(parameters["endtime"]),
                                                                client=client,
                                                                residual=0.3,
                                                                verbose=True)
