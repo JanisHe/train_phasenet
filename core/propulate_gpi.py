@@ -403,6 +403,7 @@ def ind_loss(h_params: dict[str, int | float]) -> float:
                                                                station_json=parameters["station_json"],
                                                                starttime=parameters["starttime"],
                                                                endtime=parameters["endtime"],
+                                                               client=client,
                                                                residual=0.3,
                                                                verbose=True)
 
