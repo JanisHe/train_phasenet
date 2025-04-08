@@ -364,57 +364,60 @@ def ind_loss(h_params: dict[str, int | float]) -> float:
 
 
     # Testing the model on continuous data with a given seismicity catalogue
-    # Read / create obspy client
-    if "http" in parameters["client"]:
-        client = FDSNClient(parameters["client"])
+    if model:
+        # Read / create obspy client
+        if "http" in parameters["client"]:
+            client = FDSNClient(parameters["client"])
+        else:
+            client = SDSClient(parameters["client"])
+
+        # Read seismicity catalogue
+        catalog = obspy.read_events(parameters["catalog"])
+
+        # Determine parameters for classificiation of model with SeisBench classify
+        overlap = int(parameters["nsamples"] * 0.8)  # 80 % overlap
+        blinding = int(parameters["nsamples"] * 0.1)  # 10 % blinding
+
+        prec_p, prec_s, rec_p, rec_s, f1_p, f1_s = test_on_catalog(model=model,
+                                                                   catalog=catalog,
+                                                                   station_json=parameters["station_json"],
+                                                                   starttime=obspy.UTCDateTime(parameters["starttime"]),
+                                                                   endtime=obspy.UTCDateTime(parameters["endtime"]),
+                                                                   client=client,
+                                                                   residual=0.3,
+                                                                   verbose=True,
+                                                                   overlap=overlap,
+                                                                   blinding=[blinding, blinding])
+
+        # Calculate average metric (here F1 score for P and S)
+        avg_auc = 1 - np.average(a=[f1_p, f1_s])
+
+        # Save model if avg_auc is not 1000
+        if avg_auc < 1:
+            filename = f"{pathlib.Path(h_params['parfile']).stem}_{avg_auc:.5f}.pt"
+            try:
+                if os.path.isfile(path=os.path.join(parameters["checkpoint_path"], "models")) is False:
+                    os.makedirs(os.path.join(parameters["checkpoint_path"], "models"))
+            except FileExistsError:
+                pass
+            torch.save(obj=model,
+                       f=os.path.join(parameters["checkpoint_path"], "models", filename))
+
+            # Write out parameters for successull tested model
+            with open(os.path.join(parameters["checkpoint_path"], "tested_models"), "a") as f:
+                f.write("##################################\n")
+                for key, item in parameters.items():
+                    f.write(f"{key}: {item}\n")
+                f.write(f"Avg. AUCPR: {avg_auc:.5f}\n")
+                f.write(f'model_filename: {os.path.join(parameters["checkpoint_path"], "models", filename)}\n')
+                f.write("##################################\n")
+        else:  # Write parameters into file, where not fitting model parameters are stored
+            with open(os.path.join(parameters["checkpoint_path"], "failed_models"), "a") as f:
+                f.write("##################################\n")
+                for key, item in parameters.items():
+                    f.write(f"{key}: {item}\n")
+                f.write("##################################\n")
     else:
-        client = SDSClient(parameters["client"])
-
-    # Read seismicity catalogue
-    catalog = obspy.read_events(parameters["catalog"])
-
-    # Determine parameters for classificiation of model with SeisBench classify
-    overlap = int(parameters["nsamples"] * 0.8)  # 80 % overlap
-    blinding = int(parameters["nsamples"] * 0.1)  # 10 % blinding
-
-    prec_p, prec_s, rec_p, rec_s, f1_p, f1_s = test_on_catalog(model=model,
-                                                               catalog=catalog,
-                                                               station_json=parameters["station_json"],
-                                                               starttime=obspy.UTCDateTime(parameters["starttime"]),
-                                                               endtime=obspy.UTCDateTime(parameters["endtime"]),
-                                                               client=client,
-                                                               residual=0.3,
-                                                               verbose=True,
-                                                               overlap=overlap,
-                                                               blinding=[blinding, blinding])
-
-    # Calculate average metric (here F1 score for P and S)
-    avg_auc = 1 - np.average(a=[f1_p, f1_s])
-
-    # Save model if avg_auc is not 1000
-    if avg_auc < 1:
-        filename = f"{pathlib.Path(h_params['parfile']).stem}_{avg_auc:.5f}.pt"
-        try:
-            if os.path.isfile(path=os.path.join(parameters["checkpoint_path"], "models")) is False:
-                os.makedirs(os.path.join(parameters["checkpoint_path"], "models"))
-        except FileExistsError:
-            pass
-        torch.save(obj=model,
-                   f=os.path.join(parameters["checkpoint_path"], "models", filename))
-
-        # Write out parameters for successull tested model
-        with open(os.path.join(parameters["checkpoint_path"], "tested_models"), "a") as f:
-            f.write("##################################\n")
-            for key, item in parameters.items():
-                f.write(f"{key}: {item}\n")
-            f.write(f"Avg. AUCPR: {avg_auc:.5f}\n")
-            f.write(f'model_filename: {os.path.join(parameters["checkpoint_path"], "models", filename)}\n')
-            f.write("##################################\n")
-    else:  # Write parameters into file, where not fitting model parameters are stored
-        with open(os.path.join(parameters["checkpoint_path"], "failed_models"), "a") as f:
-            f.write("##################################\n")
-            for key, item in parameters.items():
-                f.write(f"{key}: {item}\n")
-            f.write("##################################\n")
+        avg_auc = 1
 
     return avg_auc
