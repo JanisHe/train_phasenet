@@ -384,7 +384,7 @@ def ind_loss(h_params: dict[str, int | float]) -> float:
                                                                    starttime=obspy.UTCDateTime(parameters["starttime"]),
                                                                    endtime=obspy.UTCDateTime(parameters["endtime"]),
                                                                    client=client,
-                                                                   residual=0.3,
+                                                                   residual=parameters["residual"],
                                                                    verbose=True,
                                                                    overlap=overlap,
                                                                    blinding=[blinding, blinding])

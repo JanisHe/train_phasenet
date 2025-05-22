@@ -10,6 +10,7 @@ pollination: True  # Whether to use pollination or migration
 station_json: /scratch/hpc/jheuel/train_phasenet/json/rittershoffen.json
 client: /scratch/gpi/seis/jheuel/data/SDS
 catalog: /scratch/hpc/jheuel/catalogs
+residual: 0.1  # residual of pick in s to test on catalog
 starttime: 2024-03-02 06:00
 endtime: 2024-03-02 09:00
 datasets:
