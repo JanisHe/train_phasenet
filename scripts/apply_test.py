@@ -397,7 +397,6 @@ def test_on_catalog(model: seisbench.models.phasenet.PhaseNet,
                     if np.abs(pick.peak_time - peak_time) <= residual:
                         if phase == "P" and pick.phase == "P":
                             correct_p += 1
-                            print(peak_time)
                             # Remove pick from sb_picks.picks
                             sb_picks.picks.pop(sbpick_idx)
                         elif phase == "S" and pick.phase == "S":
