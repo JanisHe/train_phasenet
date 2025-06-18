@@ -1,4 +1,5 @@
 import os
+import copy
 import pathlib
 
 import obspy
@@ -324,7 +325,8 @@ def test_on_catalog(model: seisbench.models.phasenet.PhaseNet,
                     P_threshold: float = 0.2,
                     S_threshold: float = 0.2,
                     overlap: int = 2500,
-                    blinding: list = [250, 250]):
+                    blinding: list = [250, 250],
+                    plot_waveforms: bool = False):
     """
     Testing a fully trained PhaseNet model on picks from a seismicity catalogue.
     """
@@ -374,6 +376,9 @@ def test_on_catalog(model: seisbench.models.phasenet.PhaseNet,
                                   blinding=blinding,
                                   overlap=overlap)
 
+        # Copy PhaseNet picks for plot
+        sb_picks_copy = copy.deepcopy(sb_picks)
+
         # Number of detected picks by SeisBench
         total_p = 0
         total_s = 0
@@ -389,12 +394,13 @@ def test_on_catalog(model: seisbench.models.phasenet.PhaseNet,
         for phase, peak_times in all_picks[station_id].items():
             for peak_time in peak_times:  # loop over all arrival times in catalogue for phase
                 for sbpick_idx, pick in enumerate(sb_picks.picks):
-                    if pick.peak_time - residual <= peak_time <= pick.peak_time + residual:
-                        if phase == "P":
+                    if np.abs(pick.peak_time - peak_time) <= residual:
+                        if phase == "P" and pick.phase == "P":
                             correct_p += 1
+                            print(peak_time)
                             # Remove pick from sb_picks.picks
                             sb_picks.picks.pop(sbpick_idx)
-                        elif phase == "S":
+                        elif phase == "S" and pick.phase == "S":
                             correct_s += 1
                             # Remove pick from sb_picks.picks
                             sb_picks.picks.pop(sbpick_idx)
@@ -413,6 +419,42 @@ def test_on_catalog(model: seisbench.models.phasenet.PhaseNet,
         # Check whether fp_p + fp_s = len(sb_picks.picks)
         if fp_p + fp_s != len(sb_picks.picks):
             raise ValueError("Something is wrong with the picks")
+
+
+        # Plot stream, picks from catalogue and PhaseNet picks
+        if plot_waveforms is True:
+            fig = plt.figure(figsize=(15, 10))
+            axs = fig.subplots(3, 1,
+                               sharex=True,
+                               gridspec_kw={"hspace": 0, "height_ratios": [1, 1, 1]})
+
+            # Plot traces
+            for ax, trace in zip(axs, stream):
+                ax.plot_date(trace.times("matplotlib"), trace.data - np.mean(trace.data),
+                             label=f"{trace.stats.station}.{trace.stats.channel}",
+                             linestyle='solid', marker=None,
+                             color="k", linewidth=0.5)
+                ax.legend()
+
+            # Plot catalogue picks
+            for phase, peak_times in all_picks[station_id].items():
+                color = "tab:blue" if phase == "P" else "tab:orange"
+                for peak_time in peak_times:
+                    for ax in axs:
+                        ax.axvline(x=peak_time.matplotlib_date,
+                                   color=color)
+
+            # Plot PhaseNet picks
+            for pick in sb_picks_copy.picks:
+                color = "blue" if pick.phase == "P" else "red"
+                for ax in axs:
+                    ax.axvline(x=pick.peak_time.matplotlib_date,
+                               color=color,
+                               linestyle="--")
+            # plt.suptitle(f"TPR-P: {tp_p / len(all_picks[station_id]['P'])} | "
+            #              f"TPR-S: {tp_s/ len(all_picks[station_id]['S'])}")
+            plt.suptitle(f"correct P {correct_p} | correct S {correct_s}")
+            plt.show()
 
         precision_p = tp_p / (tp_p + fp_p + 1e-12)
         precision_s = tp_s / (tp_s + fp_s + 1e-12)
