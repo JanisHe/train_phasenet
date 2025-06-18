@@ -11,7 +11,6 @@ import yaml
 import seisbench.data as sbd # noqa
 import seisbench.generate as sbg # noqa
 import seisbench.models as sbm # noqa
-from examples.train_model import loss_fn
 from seisbench.util import worker_seeding # noqa
 from seisbench.models.phasenet import PhaseNet # noqa
 from torch.utils.data import DataLoader
