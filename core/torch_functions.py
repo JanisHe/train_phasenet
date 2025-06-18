@@ -2,7 +2,7 @@ import os
 import torch
 import seisbench # noqa
 import pathlib
-# import torchvision
+import torchvision
 
 import numpy as np
 
@@ -184,29 +184,41 @@ class MeanSquaredError:
         return mse
 
 
-# class FocalLoss:
-#     def __init__(self,
-#                  alpha: float = 0.25,
-#                  gamma: float = 2,
-#                  reduction: str = "mean"):
-#         self.alpha = alpha
-#         self.gamma = gamma
-#         self.reduction = reduction
-#
-#     def __call__(self,
-#                  y_pred,
-#                  y_true):
-#         val =  torchvision.ops.sigmoid_focal_loss(inputs=y_pred,
-#                                                   targets=y_true,
-#                                                   alpha=self.alpha,
-#                                                   gamma=self.gamma,
-#                                                   reduction=self.reduction)
-#
-#         if self.reduction == "none":
-#             val = val.mean(-1).sum(-1)
-#             val = val.mean()
-#
-#         return val
+class FocalLoss:
+    def __init__(self, alpha: float = 0.25, gamma: float = 2, reduction: str = "mean"):
+        self.alpha = alpha
+        self.gamma = gamma
+        self.reduction = reduction
+
+    def __call__(self, input, target):
+        val = torchvision.ops.sigmoid_focal_loss(
+            inputs=input,
+            targets=target,
+            alpha=self.alpha,
+            gamma=self.gamma,
+            reduction=self.reduction,
+        )
+
+        if self.reduction == "none":
+            val = val.mean(-1).sum(-1)
+            val = val.mean()
+
+        return val
+
+
+class DiceLoss:
+    """
+    https://medium.com/data-scientists-diary/implementation-of-dice-loss-vision-pytorch-7eef1e438f68
+    """
+    def __init__(self, smooth=1):
+        self.smooth = smooth
+
+    def __call__(self, pred, target):
+        pred = torch.sigmoid(pred)
+        intersection = (pred * target).sum(dim=(2, 3))
+        union = pred.sum(dim=(2, 3)) + target.sum(dim=(2, 3))
+        dice = (2. * intersection + self.smooth) / (union + self.smooth)
+        return 1 - dice.mean()
 
 
 class SaveBestModel:
@@ -240,6 +252,7 @@ class SaveBestModel:
             self.best_valid_loss = current_valid_loss
             if self.verbose is True:
                 self.trace_func(f"Saving best model for epoch {epoch + 1} as {self.model_name}")
+            # TODO: Save model with SeisBench saving method
             torch.save(obj=model,
                        f=self.model_name)
 
