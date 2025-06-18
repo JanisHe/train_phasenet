@@ -374,6 +374,7 @@ def ind_loss(h_params: dict[str, int | float],
     parameters["depth"] = h_params["depth"]
     parameters["drop_rate"] = h_params["drop_rate"]
     parameters["activation_function"] = h_params["activation_function"]
+    parameters["loss_fn"] = h_params["loss_fn"]
 
     # Select correct activation function
     activation_function = h_params["activation_function"]
@@ -464,6 +465,7 @@ def ind_loss(h_params: dict[str, int | float],
     parameters["win_len_factor"] = 10
 
     # Only test and save model for rank 0 since gradients are synchronized in backward passes
+    # TODO: Probably something still does not work with unwrapping the model
     if model:
         log.info("Testing model on test dataset")
         probs = np.linspace(start=1e-3,
