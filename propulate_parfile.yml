@@ -50,6 +50,10 @@ depth:
 drop_rate:
     - 0.0
     - 0.5
+loss_fn:
+    - VectorCrossEntropy
+    - FocalLoss
+    - DiceLoss
 stride:
     - 1
     - 11

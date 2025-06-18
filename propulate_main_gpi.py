@@ -65,6 +65,7 @@ def main(parfile: str):
                    "stride": params["stride"],
                    "filters_root": params["filters_root"],
                    "activation_function": params["activation_function"],
+                   "loss_fn": params["loss_fn"],
                    "parfile": renamed_parfile}
 
     # Check whether one parameter in limits_dict has only a length of one
