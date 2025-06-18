@@ -11,6 +11,7 @@ import yaml
 import seisbench.data as sbd # noqa
 import seisbench.generate as sbg # noqa
 import seisbench.models as sbm # noqa
+from examples.train_model import loss_fn
 from seisbench.util import worker_seeding # noqa
 from seisbench.models.phasenet import PhaseNet # noqa
 from torch.utils.data import DataLoader
@@ -18,7 +19,7 @@ from sklearn.metrics import auc
 from obspy.clients.fdsn import Client as FDSNClient
 from obspy.clients.filesystem.sds import Client as SDSClient
 
-from core.torch_functions import VectorCrossEntropyLoss, test_model, EarlyStopping
+from core.torch_functions import VectorCrossEntropyLoss, test_model, EarlyStopping, FocalLoss, DiceLoss
 from core.utils import read_datasets, add_fake_events, get_phase_dict, check_parameters
 from scripts.apply_test import test_on_catalog
 
@@ -224,6 +225,7 @@ def ind_loss(h_params: dict[str, int | float]) -> float:
     parameters["depth"] = h_params["depth"]
     parameters["drop_rate"] = h_params["drop_rate"]
     parameters["activation_function"] = h_params["activation_function"]
+    parameters["loss_fn"] = h_params["loss_fn"]
 
     # Select correct activation function
     activation_function = h_params["activation_function"]
@@ -267,7 +269,16 @@ def ind_loss(h_params: dict[str, int | float]) -> float:
 
     model = model.to(device)
 
-    loss_fn = VectorCrossEntropyLoss()
+    # Setting up loss function from h_params
+    if h_params["loss_fn"].lower() == "vectorcrossentropy":
+        loss_fn = VectorCrossEntropyLoss()
+    elif h_params["loss_fn"].lower() == "focalloss":
+        loss_fn = FocalLoss()
+    elif h_params["loss_fn"].lower() == "diceloss":
+        loss_fn = DiceLoss()
+    else:
+        msg = f"Unknwon loss function {h_params['loss_fn']}"
+        raise ValueError(msg)
 
     # specify learning rate and optimizer
     optimizer = torch.optim.Adam(model.parameters(),
