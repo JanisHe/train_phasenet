@@ -190,10 +190,10 @@ class FocalLoss:
         self.gamma = gamma
         self.reduction = reduction
 
-    def __call__(self, input, target):
+    def __call__(self, y_pred, y_true):
         val = torchvision.ops.sigmoid_focal_loss(
-            inputs=input,
-            targets=target,
+            inputs=y_pred,
+            targets=y_true,
             alpha=self.alpha,
             gamma=self.gamma,
             reduction=self.reduction,
@@ -213,10 +213,10 @@ class DiceLoss:
     def __init__(self, smooth=1):
         self.smooth = smooth
 
-    def __call__(self, pred, target):
-        pred = torch.sigmoid(pred)
-        intersection = (pred * target).sum(dim=(2, 3))
-        union = pred.sum(dim=(2, 3)) + target.sum(dim=(2, 3))
+    def __call__(self, y_pred, y_true):
+        y_pred = torch.sigmoid(y_pred)
+        intersection = (y_pred * y_true).sum(dim=(2, 3))
+        union = y_pred.sum(dim=(2, 3)) + y_true.sum(dim=(2, 3))
         dice = (2. * intersection + self.smooth) / (union + self.smooth)
         return 1 - dice.mean()
 
