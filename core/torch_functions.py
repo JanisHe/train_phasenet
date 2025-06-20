@@ -214,11 +214,13 @@ class DiceLoss:
         self.smooth = smooth
 
     def __call__(self, y_pred, y_true):
-        y_pred = torch.sigmoid(y_pred)
-        intersection = (y_pred * y_true).sum(dim=(2, 3))
-        union = y_pred.sum(dim=(2, 3)) + y_true.sum(dim=(2, 3))
-        dice = (2. * intersection + self.smooth) / (union + self.smooth)
-        return 1 - dice.mean()
+        inputs = y_pred.contiguous().view(-1)
+        targets = y_true.contiguous().view(-1)
+
+        intersection = (inputs * targets).sum()
+        dice = (2. * intersection + self.smooth) / (inputs.sum() + targets.sum() + self.smooth)
+
+        return 1 - dice  # Return Dice *loss*
 
 
 class SaveBestModel:
