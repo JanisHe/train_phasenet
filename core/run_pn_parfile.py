@@ -60,21 +60,21 @@ def main(parfile):
             else:
                 msg = f"{e}\nDid not find {parameters['preload_model']}."
                 raise IOError(msg)
-    else:
-        # model = sbm.PhaseNet(phases=phases, norm="peak")
-        # Create new instance of model if no model is previously loaded for transfer learning
-        model = sbm.VariableLengthPhaseNet(phases=parameters["phases"],
-                                           in_samples=parameters["nsamples"],
-                                           classes=len(parameters["phases"]),
-                                           sampling_rate=parameters["sampling_rate"],
-                                           in_channels=parameters["in_channels"],
-                                           norm="peak",
-                                           stride=parameters["stride"],
-                                           kernel_size=parameters["kernel_size"],
-                                           filters_root=parameters["filters_root"],
-                                           depth=parameters["depth"],
-                                           drop_rate=parameters["drop_rate"])
-        # model = torch.compile(model)  # XXX Attribute error when saving model
+    else:  # Create new instance of model if no model is previously loaded for transfer learning
+        try:
+            model = sbm.VariableLengthPhaseNet(phases=parameters["phases"],
+                                               in_samples=parameters["nsamples"],
+                                               classes=len(parameters["phases"]),
+                                               sampling_rate=parameters["sampling_rate"],
+                                               in_channels=parameters["in_channels"],
+                                               norm="peak",
+                                               stride=parameters["stride"],
+                                               kernel_size=parameters["kernel_size"],
+                                               filters_root=parameters["filters_root"],
+                                               depth=parameters["depth"],
+                                               drop_rate=parameters["drop_rate"])
+        except TypeError:
+            model = sbm.PhaseNet(phases=parameters["phases"], norm="peak")
 
     # Add filter_kwargs to model if available in paramters
     if parameters.get("filter_kwargs"):
