@@ -254,9 +254,9 @@ class SaveBestModel:
             self.best_valid_loss = current_valid_loss
             if self.verbose is True:
                 self.trace_func(f"Saving best model for epoch {epoch + 1} as {self.model_name}")
-            # TODO: Save model with SeisBench saving method
-            torch.save(obj=model,
-                       f=self.model_name)
+
+            # Save model as a Seisbench model, i.e. weights and json
+            model.save(path=self.model_name)
 
 
 def train_model(model,
