@@ -1,23 +1,50 @@
-nsamples: 3001
-sampling_rate: 100
-labeler: gaussian    # gaussian | triangle | box
-sigma: 10            # Half-width of labeler
-add_fake_events: 200   # Copying events increase training data set (in percent)
-# phases: PS
-datasets:
-    - insheim: /scratch/gpi/seis/jheuel/ai_datasets/insheim
-batch_size: 256
-epochs: 20
-learning_rate:
-    decay: True
-    initial_lr: 0.1
-    step_size: 10
-    gamma: 0.1
-preload_model: stead  # diting, ethz, geofon, instance, iquique, lendb, neic, obs, original, scedc, stead
-nworkers: 6
-patience: 50        # early stopping
-model_name: test_floodrisk.pth
-# Parameters for test
-win_len_factor: 10
-true_pick_prob: 0.5
-arrival_residual: 10  # in samples
+# Parameter file to train PhaseNet
+# Optional parameters are marked with the keyword optional.
+# If optional parameters are not used, comment them out
+
+############## Defining PhaseNet ####################
+nsamples: 3001            # Input length of data
+sampling_rate: 100        # Sampling rate in Hz
+labeler: gaussian         # Window around pick; select from gaussian, triangle or box
+sigma: 10                 # Half-width of the window around the pick
+model_name: my_model      # Name of the trained model. Model is saved in SeisBench format
+phases: PSN               # Optional | Output phase of PhaseNet. Default is PSN | Also two phases are possible
+filter_factor: 1          # Optional | Depth of the network increases (by 2**depth * 8) * filter_factor
+                          # Default value is 1
+
+############## Transfer Learning ###################
+# Optional | Continue training from a pretrained SeisBench model
+preload_model: stead  # other models: diting, ethz, geofon, instance, iquique, lendb, neic, obs, original, scedc, pisdl
+
+############## Loading Datasets ###################
+datasets:                             # Takes a list of all datasets
+    - d1: pathname/to/dataset/one
+    - d2: pathname/to/dataset/two
+
+############## Loading noise datasets ############
+# Optional
+# Adding noise to your data to deteriorate your datasets (noise is added if trace_Z_snr_db >= 10 dB)
+noise_datasets:                       # Takes a list of noise datasets
+    - n1: pathname/to/noise/dataset/one
+    - n2: pathname/to/noise/dataset/two
+
+############## Data augmentation ################
+add_fake_events: 250  # Optional | Copying events and increase the training dataset by the number in percent
+rotate: True          # Optional | If True, rotate horizontal traces by an arbitrary angle
+
+############## Control Training #################
+batch_size: 512
+epochs: 30                   # Number of epochs
+learning_rate:               # Control learning rate parameters
+    decay: False             # If True, using a decaying learning rate (lr), otherwise lr is constant
+    initial_lr: 0.001        # Initial lr for decaying lr or value for constant lr
+    step_size: 10            # Stepsize for decaying lr (only if decay: True)
+    gamma: 0.1               # Gamma value for decaying lr (only if decay: True)
+nworkers: 10                 # Number of workers used for training
+patience: 50                 # Patience of early stopping, i.e. waiting for consecutive epochs if validation loss does not decrease further
+
+############## Parameters for testing ###########
+# After finishing training, the model is tested on the test data from the loaded dataset
+win_len_factor: 10     # Length of a window to search for a true pick (length = int(win_len_factor * sigma))
+true_pick_prob: 0.5    # Assigned pick probability to count for a true pick
+arrival_residual: 10   # Maximum allowed residual in samples to count a true pick
